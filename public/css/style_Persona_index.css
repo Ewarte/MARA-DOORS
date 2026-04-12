@@ -1,0 +1,176 @@
+
+        .page-header {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .breadcrumb {
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        .card-clean {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .card-header-clean {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-header-title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .custom-table thead th {
+            background: #fff;
+            color: #6c757d;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .custom-table tbody td {
+            padding: 0.75rem 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #e9ecef;
+            color: #495057;
+            font-size: 0.9rem;
+        }
+
+        .custom-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #e9ecef;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-right: 10px;
+        }
+
+        .client-info {
+            display: flex;
+            align-items: center;
+        }
+
+        .info-subtext {
+            display: block;
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+
+        .badge-pill {
+            padding: 0.35em 0.65em;
+            border-radius: 50rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-success { 
+            background-color: #d4edda; 
+            color: #155724; 
+        }
+        .badge-danger { 
+            background-color: #f8d7da; 
+            color: #721c24; 
+        }
+
+        .btn-action-group {
+            display: flex;
+            gap: 4px;
+        }
+
+        .btn-icon-soft {
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            transition: all 0.15s;
+            background: transparent;
+            color: #6c757d;
+        }
+
+        .btn-icon-soft:hover {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+
+        .btn-icon-soft.delete:hover {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .btn-create {
+            background: #495057;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            font-weight: 500;
+            transition: all 0.15s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.9rem;
+        }
+
+        .btn-create:hover {
+            background: #343a40;
+            color: white;
+        }
+
+        /* Modal */
+        .modal-content-clean {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+        }
+
+        .modal-header-clean {
+            background: #f8f9fa;
+            color: #495057;
+            border-bottom: 1px solid #dee2e6;
+            padding: 1rem;
+        }
