@@ -21,21 +21,13 @@ use App\Http\Controllers\Admin\VentaController;
 use App\Http\Controllers\Admin\CotizacionController;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-*/
-
 Route::redirect('/', '/admin/login');
-
 Route::prefix('admin')->group(function () {
     // --- Autenticacion ---
     Route::controller(LoginController::class)->group(function () {
         Route::get('/login', 'index')->name('login');
         Route::post('/login', 'login');
     });
-
     // --- Facturas públicas (links firmados para compartir por WhatsApp) ---
     Route::middleware('signed')->group(function () {
         Route::get('/facturas/ventas/{venta}', [VentaController::class, 'facturaPublica'])->name('facturas.ventas');
@@ -48,13 +40,10 @@ Route::prefix('admin')->group(function () {
             Route::post('/{module}/excel', [ExportController::class, 'exportExcel'])->name('excel');
             Route::post('/{module}/pdf', [ExportController::class, 'exportPdf'])->name('pdf');
         });
-
         // --- Dashboard ---
         Route::get('/', [HomeController::class, 'index'])->name('panel');
-
         // --- Perfil de Usuario ---
         Route::resource('profile', ProfileController::class);
-
         // --- Gestion de Productos ---
         Route::prefix('productos')->name('productos.')->group(function () {
             // Ajustes de Stock
@@ -63,16 +52,13 @@ Route::prefix('admin')->group(function () {
             Route::post('/store-ajuste', [ProductoController::class, 'storeAjuste'])->name('storeAjuste');
             Route::get('/{producto}/ajuste-cantidad', [ProductoController::class, 'ajusteCantidad'])->name('ajusteCantidad');
             Route::post('/{producto}/ajuste-cantidad', [ProductoController::class, 'updateCantidad'])->name('updateCantidad');
-
             // Utilidades
             Route::get('/check-stock', [ProductoController::class, 'checkStock'])->name('checkStock');
             Route::patch('/{producto}/estado', [ProductoController::class, 'updateEstado'])->name('updateEstado');
-
             // Exportacion
             Route::post('/export-excel', [ProductoController::class, 'exportExcel'])->name('export.excel');
             Route::post('/export-pdf', [ProductoController::class, 'exportPdf'])->name('export.pdf');
         });
-
         // --- Gestion de Ventas ---
         Route::prefix('ventas')->name('ventas.')->group(function () {
             Route::get('/check-stock', [VentaController::class, 'checkStock'])->name('check-stock');

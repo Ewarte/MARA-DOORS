@@ -104,7 +104,7 @@
                         <select name="cliente_id" id="cliente_id" class="form-control form-control-sm selectpicker show-tick" data-live-search="true" title="Seleccione un cliente" required>
                             @foreach ($clientes as $item)
                                 <option value="{{ $item->id }}" data-descuento="{{ $item->grupo->descuento_global ?? 0 }}">
-                                    {{ $item->persona->razon_social }} 
+                                    {{ $item->persona->razon_social }}
                                     @if(isset($item->grupo) && $item->grupo->descuento_global > 0)
                                         ({{ $item->grupo->nombre }}: {{ number_format($item->grupo->descuento_global, 2) }}%)
                                     @endif
@@ -275,8 +275,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta3/dist/js/bootstrap-select.min.js"></script>
     <script>
         $(document).ready(function() {
-            const PRODUCTOR_RAW = '{!! addslashes(json_encode($productos)) !!}';
-            const PRODUCTOS = JSON.parse(PRODUCTOR_RAW);
+            const PRODUCTOS = @json($productos);
             let itemsAgregados = new Set();
             let selectedItem = null;
             let rowCount = 0;
@@ -288,7 +287,7 @@
             $('#cliente_id').on('change', function() {
                 const selected = $(this).find('option:selected');
                 currentClienteDescuento = parseFloat(selected.data('descuento')) || 0;
-                
+
                 // Si ya hay items, preguntar si desea aplicar el nuevo descuento a todos
                 const hasItems = $('#tabla_detalle tbody tr').length > 0;
                 if (hasItems && currentClienteDescuento > 0) {
@@ -388,12 +387,31 @@
 
             async function fetchStock(productoId, almacenId) {
                 const mySeq = ++stockRequestSeq;
-                const res = await $.ajax({
+                const raw = await $.ajax({
                     url: '{{ route("ventas.check-stock") }}',
                     method: 'GET',
+                    dataType: 'text',
                     data: { producto_id: productoId, almacen_id: almacenId }
                 });
+
+                const cleanRaw = typeof raw === 'string' ? raw.replace(/^\uFEFF/, '').trim() : raw;
+                const res = typeof cleanRaw === 'string' ? JSON.parse(cleanRaw) : cleanRaw;
+
                 return { res, mySeq };
+            }
+
+            function getAjaxErrorMessage(err, fallback = 'Error en el servidor') {
+                if (err?.responseJSON?.message) return err.responseJSON.message;
+                if (err?.responseJSON?.errors) {
+                    const firstError = Object.values(err.responseJSON.errors)[0];
+                    if (Array.isArray(firstError) && firstError.length) return firstError[0];
+                }
+                if (err?.message) return err.message;
+                if (typeof err === 'string' && err.trim()) return err;
+                if (err?.status === 403) return 'No tienes acceso al almacén seleccionado.';
+                if (err?.status === 404) return 'No se encontró la ruta para consultar stock.';
+                if (err?.status === 422) return 'Los datos enviados para consultar stock no son válidos.';
+                return fallback;
             }
 
 
@@ -493,7 +511,16 @@
                         Swal.fire("Error", "No se pudo consultar el stock", "error");
                     }
                 } catch (err) {
-                    Swal.fire("Error", "Error en el servidor", "error");
+                    console.error('Error al seleccionar producto en venta/create', {
+                        producto: p,
+                        almacenId: storageId,
+                        status: err?.status,
+                        message: err?.message,
+                        stack: err?.stack,
+                        responseJSON: err?.responseJSON,
+                        responseText: err?.responseText
+                    });
+                    Swal.fire("Error", getAjaxErrorMessage(err), "error");
                 }
             }
 
@@ -517,7 +544,16 @@
                     selectedItem.ilimitado = ilimitado;
                     setStockBadge(res.stock, ilimitado);
                 } catch (err) {
-                    Swal.fire("Error", "Error en el servidor", "error");
+                    console.error('Error al refrescar stock en venta/create', {
+                        producto: selectedItem,
+                        almacenId,
+                        status: err?.status,
+                        message: err?.message,
+                        stack: err?.stack,
+                        responseJSON: err?.responseJSON,
+                        responseText: err?.responseText
+                    });
+                    Swal.fire("Error", getAjaxErrorMessage(err), "error");
                 }
             }
 

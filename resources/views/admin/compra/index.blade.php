@@ -872,9 +872,11 @@
                 'Accept': 'application/json'
             }
         })
-        .then(response => {
+        .then(async response => {
             if (!response.ok) throw new Error('Error al cargar los datos');
-            return response.json();
+            const raw = await response.text();
+            const cleanRaw = typeof raw === 'string' ? raw.replace(/^\uFEFF/, '').trim() : raw;
+            return JSON.parse(cleanRaw);
         })
         .then(data => {
             if (data.success) {
@@ -934,7 +936,11 @@
             },
             body: JSON.stringify(data)
         })
-        .then(response => response.json())
+        .then(async response => {
+            const raw = await response.text();
+            const cleanRaw = typeof raw === 'string' ? raw.replace(/^\uFEFF/, '').trim() : raw;
+            return JSON.parse(cleanRaw);
+        })
         .then(data => {
             if (data.success) {
                 Swal.fire({

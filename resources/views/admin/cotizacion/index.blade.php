@@ -878,7 +878,11 @@
             },
             body: JSON.stringify({ estado: status })
         })
-        .then(response => response.json())
+        .then(async response => {
+            const raw = await response.text();
+            const cleanRaw = typeof raw === 'string' ? raw.replace(/^\uFEFF/, '').trim() : raw;
+            return JSON.parse(cleanRaw);
+        })
         .then(data => {
             if (data.success) {
                 Swal.fire({
@@ -976,7 +980,9 @@
                 if (res.status === 404) throw new Error('Cotización no encontrada.');
                 throw new Error(`Error del servidor (HTTP ${res.status})`);
             }
-            return res.json();
+            const raw = await res.text();
+            const cleanRaw = typeof raw === 'string' ? raw.replace(/^\uFEFF/, '').trim() : raw;
+            return JSON.parse(cleanRaw);
         })
         .then(data => {
             if (data.success) {
@@ -1049,7 +1055,11 @@
                         'Accept': 'application/json'
                     }
                 })
-                .then(res => res.json())
+                .then(async res => {
+                    const raw = await res.text();
+                    const cleanRaw = typeof raw === 'string' ? raw.replace(/^\uFEFF/, '').trim() : raw;
+                    return JSON.parse(cleanRaw);
+                })
                 .then(data => {
                     if (data.success) {
                         Swal.fire('¡Éxito!', data.message, 'success').then(() => {

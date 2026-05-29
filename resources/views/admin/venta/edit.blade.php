@@ -289,7 +289,7 @@
             $('#cliente_id').on('change', function() {
                 const selected = $(this).find('option:selected');
                 currentClienteDescuento = parseFloat(selected.data('descuento')) || 0;
-                
+
                 const hasItems = $('#tabla_detalle tbody tr').length > 0;
                 if (hasItems && currentClienteDescuento > 0) {
                     Swal.fire({
@@ -397,6 +397,18 @@
                 return { res, mySeq };
             }
 
+            function getAjaxErrorMessage(err, fallback = 'Error al consultar stock') {
+                if (err?.responseJSON?.message) return err.responseJSON.message;
+                if (err?.responseJSON?.errors) {
+                    const firstError = Object.values(err.responseJSON.errors)[0];
+                    if (Array.isArray(firstError) && firstError.length) return firstError[0];
+                }
+                if (err?.status === 403) return 'No tienes acceso al almacén seleccionado.';
+                if (err?.status === 404) return 'No se encontró la ruta para consultar stock.';
+                if (err?.status === 422) return 'Los datos enviados para consultar stock no son válidos.';
+                return fallback;
+            }
+
             function resetVentaItems() {
                 $('#tabla_detalle tbody').empty();
                 itemsAgregados.clear();
@@ -467,7 +479,7 @@
 
                         $('#selection_card').slideDown();
                     }
-                } catch (e) { Swal.fire("Error", "Error al consultar stock", "error"); }
+                } catch (e) { Swal.fire("Error", getAjaxErrorMessage(e), "error"); }
             }
 
             async function refreshSelectedStockForAlmacen(almacenId) {
@@ -489,7 +501,7 @@
                     selectedItem.ilimitado = ilimitado;
                     setStockBadge(res.stock, ilimitado);
                 } catch (err) {
-                    Swal.fire("Error", "Error al consultar stock", "error");
+                    Swal.fire("Error", getAjaxErrorMessage(err), "error");
                 }
             }
 

@@ -21,17 +21,12 @@ class LoginController extends Controller
         if (!Auth::validate($request->only('email', 'password'))) {
             return redirect()->route('login')->withErrors('Credenciales incorrectas');
         }
-
         // Crear una sesion
         $user = Auth::getProvider()->retrieveByCredentials($request->only('email', 'password'));
         Auth::login($user);
-
-
-
         // Para otros usuarios, redirigir al panel normal
         return redirect()->route('panel')->with('success', 'Bienvenido ' . $user->name);
     }
-
     // Método adicional para logout (si es necesario)
     public function logout(Request $request)
     {
