@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Realizar venta')
 
@@ -101,16 +101,21 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Cliente:</label>
-                        <select name="cliente_id" id="cliente_id" class="form-control form-control-sm selectpicker show-tick" data-live-search="true" title="Seleccione un cliente" required>
-                            @foreach ($clientes as $item)
-                                <option value="{{ $item->id }}" data-descuento="{{ $item->grupo->descuento_global ?? 0 }}">
-                                    {{ $item->persona->razon_social }}
-                                    @if(isset($item->grupo) && $item->grupo->descuento_global > 0)
-                                        ({{ $item->grupo->nombre }}: {{ number_format($item->grupo->descuento_global, 2) }}%)
-                                    @endif
-                                </option>
-                            @endforeach
-                        </select>
+                        <div class="input-group input-group-sm">
+                            <div class="position-relative flex-grow-1 search-wrapper">
+                                <input type="text" id="cliente_search_input" class="form-control form-control-sm" placeholder="Buscar cliente por nombre o documento..." autocomplete="off" required>
+                                <div class="products-dropdown w-100" id="clientes_dropdown" style="position: absolute; display: none; z-index: 1050;"></div>
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm" type="button" id="btn_nuevo_cliente" data-bs-toggle="modal" data-bs-target="#modal_nuevo_cliente" style="height: 32px;">
+                                <i class="fas fa-plus"></i> Nuevo
+                            </button>
+                        </div>
+                        <input type="hidden" name="cliente_id" id="cliente_id" required>
+                        <div id="cliente_seleccionado_card" class="mt-2 p-2 border rounded bg-light" style="display: none; font-size: 13px;">
+                            <strong>Cliente Seleccionado:</strong> <span id="cliente_seleccionado_nombre" class="fw-bold"></span> 
+                            <span class="badge bg-info ms-2" id="cliente_seleccionado_descuento"></span>
+                            <button type="button" class="btn-close float-end" id="btn_quitar_cliente" style="font-size: 10px;"></button>
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Sucursal:</label>
@@ -269,6 +274,7 @@
             </div>
         </div>
     </form>
+    @include('admin.layouts.partials.modal-cliente')
 @endsection
 
 @push('js')
@@ -276,6 +282,7 @@
     <script>
         $(document).ready(function() {
             const PRODUCTOS = @json($productos);
+            const CLIENTES = @json($clientes);
             let itemsAgregados = new Set();
             let selectedItem = null;
             let rowCount = 0;
@@ -284,9 +291,61 @@
             let suppressAlmacenChange = false;
             let currentClienteDescuento = 0;
 
-            $('#cliente_id').on('change', function() {
-                const selected = $(this).find('option:selected');
-                currentClienteDescuento = parseFloat(selected.data('descuento')) || 0;
+            // --- CLIENT SEARCH & MODAL LOGIC ---
+            $('#cliente_search_input').on('input', function() {
+                const q = $(this).val().toLowerCase().trim();
+                const dropdown = $('#clientes_dropdown');
+                if (q.length < 1) { dropdown.hide(); return; }
+
+                const matches = CLIENTES.filter(c => 
+                    c.persona.razon_social.toLowerCase().includes(q) || 
+                    (c.persona.numero_documento && c.persona.numero_documento.toLowerCase().includes(q))
+                ).slice(0, 10);
+
+                dropdown.empty();
+                if (matches.length === 0) {
+                    dropdown.append('<div class="p-3 text-muted small text-center">No se encontraron clientes</div>').show();
+                    return;
+                }
+
+                matches.forEach(c => {
+                    const desc = parseFloat(c.grupo?.descuento_global) || 0;
+                    const item = $(`
+                        <div class="product-item">
+                            <div>
+                                <div class="prod-main">${c.persona.razon_social}</div>
+                                <div class="prod-sub">${c.persona.numero_documento || 'Sin doc'} ${c.grupo ? ' | ' + c.grupo.nombre : ''}</div>
+                            </div>
+                            <div class="prod-price">${desc > 0 ? desc + '% desc' : ''}</div>
+                        </div>
+                    `);
+
+                    item.on('click', () => {
+                        selectCliente(c.id, c.persona.razon_social, desc);
+                    });
+                    dropdown.append(item);
+                });
+                dropdown.show();
+            });
+
+            $(document).on('click', (e) => {
+                if (!$(e.target).closest('.search-wrapper').length) $('#clientes_dropdown').hide();
+            });
+
+            function selectCliente(id, name, descuento) {
+                $('#cliente_id').val(id);
+                $('#cliente_seleccionado_nombre').text(name);
+                if (descuento > 0) {
+                    $('#cliente_seleccionado_descuento').text('Descuento: ' + descuento + '%').show();
+                } else {
+                    $('#cliente_seleccionado_descuento').hide();
+                }
+                $('#cliente_seleccionado_card').show();
+                $('#cliente_search_input').hide();
+                $('#cliente_search_input').removeAttr('required');
+                $('#clientes_dropdown').hide();
+
+                currentClienteDescuento = parseFloat(descuento) || 0;
 
                 // Si ya hay items, preguntar si desea aplicar el nuevo descuento a todos
                 const hasItems = $('#tabla_detalle tbody tr').length > 0;
@@ -304,7 +363,29 @@
                         }
                     });
                 }
+            }
+
+            $('#btn_quitar_cliente').on('click', function() {
+                $('#cliente_id').val('');
+                $('#cliente_seleccionado_card').hide();
+                $('#cliente_search_input').val('').show().focus();
+                $('#cliente_search_input').attr('required', 'required');
+                currentClienteDescuento = 0;
             });
+
+            window.onClienteCreado = function(cliente) {
+                CLIENTES.push({
+                    id: cliente.id,
+                    persona: {
+                        razon_social: cliente.razon_social,
+                        numero_documento: cliente.numero_documento
+                    },
+                    grupo: {
+                        descuento_global: cliente.descuento
+                    }
+                });
+                selectCliente(cliente.id, cliente.razon_social, cliente.descuento);
+            };
 
             function aplicarDescuentoGlobal(porcentaje) {
                 $('#tabla_detalle tbody tr').each(function() {

@@ -25,7 +25,7 @@
     <table class="header-table">
         <tr>
             <td width="60%">
-                <div class="company-name">Mara-Doors</div>
+                <div class="company-name">HIERROPAR</div>
                 <div style="font-size:10px;">Sistema de Cotizaciones</div>
             </td>
             <td width="40%" class="text-right">

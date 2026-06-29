@@ -1,4 +1,4 @@
-﻿﻿<?php
+﻿<?php
 
 use App\Http\Controllers\Admin\AlmacenController;
 use App\Http\Controllers\Admin\CategoriaController;
@@ -116,6 +116,9 @@ Route::prefix('admin')->group(function () {
 
         // --- Estado de cliente (activar/desactivar) ---
         Route::patch('clientes/{persona}/estado', [ClienteController::class, 'changeState'])->name('clientes.changeState');
+
+        // --- Metadata para modales ---
+        Route::get('metadata/documentos-grupos', [ClienteController::class, 'getMetadata'])->name('metadata.documentos-grupos');
 
         Route::resource('tipounidades', TipoUnidadController::class)->parameters(['tipounidades' => 'tipounidad']);
 

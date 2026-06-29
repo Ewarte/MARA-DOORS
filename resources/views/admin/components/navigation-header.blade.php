@@ -11,9 +11,9 @@
                 $route = route('profile.index');
             }
         @endphp
-        <a class="navbar-brand ps-3 fw-semibold text-light" href="{{ $route }}">MARA-DOORS</a>
+        <a class="navbar-brand ps-3 fw-semibold text-light" href="{{ $route }}">HIERROPAR</a>
     @else
-        <a class="navbar-brand ps-3 fw-semibold text-light" href="{{ route('welcome') }}">MARA-DOORS</a>
+        <a class="navbar-brand ps-3 fw-semibold text-light" href="{{ route('welcome') }}">HIERROPAR</a>
     @endauth
 
     <!-- Sidebar Toggle -->

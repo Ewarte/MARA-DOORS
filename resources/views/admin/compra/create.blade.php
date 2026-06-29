@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Realizar compra')
 
@@ -78,11 +78,20 @@
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label">Proveedor:</label>
-                        <select name="proveedor_id" id="proveedor_id" class="form-control form-control-sm selectpicker" data-live-search="true" title="Seleccione proveedor" required>
-                            @foreach ($proveedores as $item)
-                                <option value="{{ $item->id }}">{{ $item->persona->razon_social }}</option>
-                            @endforeach
-                        </select>
+                        <div class="input-group input-group-sm">
+                            <div class="position-relative flex-grow-1 search-wrapper">
+                                <input type="text" id="proveedor_search_input" class="form-control form-control-sm" placeholder="Buscar proveedor por nombre o documento..." autocomplete="off" required>
+                                <div class="products-dropdown w-100" id="proveedores_dropdown" style="position: absolute; display: none; z-index: 1050;"></div>
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm" type="button" id="btn_nuevo_proveedor" data-bs-toggle="modal" data-bs-target="#modal_nuevo_proveedor" style="height: 32px;">
+                                <i class="fas fa-plus"></i> Nuevo
+                            </button>
+                        </div>
+                        <input type="hidden" name="proveedor_id" id="proveedor_id" required>
+                        <div id="proveedor_seleccionado_card" class="mt-2 p-2 border rounded bg-light" style="display: none; font-size: 13px;">
+                            <strong>Proveedor Seleccionado:</strong> <span id="proveedor_seleccionado_nombre" class="fw-bold"></span> 
+                            <button type="button" class="btn-close float-end" id="btn_quitar_proveedor" style="font-size: 10px;"></button>
+                        </div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Sucursal:</label>
@@ -212,6 +221,7 @@
             </div>
         </div>
     </form>
+    @include('admin.layouts.partials.modal-proveedor')
 @endsection
 
 @push('js')
@@ -220,9 +230,76 @@
         $(document).ready(function() {
             const PRODUCTOR_RAW = '{!! addslashes(json_encode($productos)) !!}';
             const PRODUCTOS = JSON.parse(PRODUCTOR_RAW);
+            const PROVEEDORES = @json($proveedores);
             let itemsAgregados = new Set();
             let selectedItem = null;
             let rowCount = 0;
+
+            // --- PROVEEDOR SEARCH & MODAL LOGIC ---
+            $('#proveedor_search_input').on('input', function() {
+                const q = $(this).val().toLowerCase().trim();
+                const dropdown = $('#proveedores_dropdown');
+                if (q.length < 1) { dropdown.hide(); return; }
+
+                const matches = PROVEEDORES.filter(p => 
+                    p.persona.razon_social.toLowerCase().includes(q) || 
+                    (p.persona.numero_documento && p.persona.numero_documento.toLowerCase().includes(q))
+                ).slice(0, 10);
+
+                dropdown.empty();
+                if (matches.length === 0) {
+                    dropdown.append('<div class="p-3 text-muted small text-center">No se encontraron proveedores</div>').show();
+                    return;
+                }
+
+                matches.forEach(p => {
+                    const item = $(`
+                        <div class="product-item">
+                            <div>
+                                <div class="prod-main">${p.persona.razon_social}</div>
+                                <div class="prod-sub">${p.persona.numero_documento || 'Sin doc'}</div>
+                            </div>
+                        </div>
+                    `);
+
+                    item.on('click', () => {
+                        selectProveedor(p.id, p.persona.razon_social);
+                    });
+                    dropdown.append(item);
+                });
+                dropdown.show();
+            });
+
+            $(document).on('click', (e) => {
+                if (!$(e.target).closest('.search-wrapper').length) $('#proveedores_dropdown').hide();
+            });
+
+            function selectProveedor(id, name) {
+                $('#proveedor_id').val(id);
+                $('#proveedor_seleccionado_nombre').text(name);
+                $('#proveedor_seleccionado_card').show();
+                $('#proveedor_search_input').hide();
+                $('#proveedor_search_input').removeAttr('required');
+                $('#proveedores_dropdown').hide();
+            }
+
+            $('#btn_quitar_proveedor').on('click', function() {
+                $('#proveedor_id').val('');
+                $('#proveedor_seleccionado_card').hide();
+                $('#proveedor_search_input').val('').show().focus();
+                $('#proveedor_search_input').attr('required', 'required');
+            });
+
+            window.onProveedorCreado = function(proveedor) {
+                PROVEEDORES.push({
+                    id: proveedor.id,
+                    persona: {
+                        razon_social: proveedor.razon_social,
+                        numero_documento: proveedor.numero_documento
+                    }
+                });
+                selectProveedor(proveedor.id, proveedor.razon_social);
+            };
 
             $('.selectpicker').selectpicker();
 
@@ -394,7 +471,7 @@
 
             $('#btn_cancelar').on('click', function() {
                 Swal.fire({
-                    title: 'Â¿Confirmar?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, limpiar'
+                    title: '¿Confirmar?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, limpiar'
                 }).then((r) => {
                     if (r.isConfirmed) {
                         $('#tabla_detalle tbody').empty();

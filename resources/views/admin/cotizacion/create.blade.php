@@ -58,21 +58,37 @@
                         <div class="row g-4">
                             <div class="col-md-4">
                                 <label class="form-label">Cliente (Opcional)</label>
-                                <select name="cliente_id" id="cliente_id" class="form-control selectpicker" data-live-search="true" data-style="btn-outline-secondary btn-sm" title="Seleccione un cliente">
-                                    <option value="">Ninguno</option>
-                                    @foreach ($clientes as $item)
-                                        <option value="{{ $item->id }}">{{ $item->persona->razon_social }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="input-group input-group-sm">
+                                    <div class="position-relative flex-grow-1 search-wrapper">
+                                        <input type="text" id="cliente_search_input" class="form-control form-control-sm" placeholder="Buscar cliente por nombre o documento..." autocomplete="off">
+                                        <div class="products-dropdown w-100" id="clientes_dropdown" style="position: absolute; display: none; z-index: 1050;"></div>
+                                    </div>
+                                    <button class="btn btn-outline-primary btn-sm" type="button" id="btn_nuevo_cliente" data-bs-toggle="modal" data-bs-target="#modal_nuevo_cliente" style="height: 32px;">
+                                        <i class="fas fa-plus"></i> Nuevo
+                                    </button>
+                                </div>
+                                <input type="hidden" name="cliente_id" id="cliente_id">
+                                <div id="cliente_seleccionado_card" class="mt-2 p-2 border rounded bg-light" style="display: none; font-size: 13px;">
+                                    <strong>Cliente Seleccionado:</strong> <span id="cliente_seleccionado_nombre" class="fw-bold"></span> 
+                                    <button type="button" class="btn-close float-end" id="btn_quitar_cliente" style="font-size: 10px;"></button>
+                                </div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Proveedor (Opcional)</label>
-                                <select name="proveedor_id" id="proveedor_id" class="form-control selectpicker" data-live-search="true" data-style="btn-outline-secondary btn-sm" title="Seleccione un proveedor">
-                                    <option value="">Ninguno</option>
-                                    @foreach ($proveedores as $item)
-                                        <option value="{{ $item->id }}">{{ $item->persona->razon_social }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="input-group input-group-sm">
+                                    <div class="position-relative flex-grow-1 search-wrapper-prov">
+                                        <input type="text" id="proveedor_search_input" class="form-control form-control-sm" placeholder="Buscar proveedor por nombre o documento..." autocomplete="off">
+                                        <div class="products-dropdown w-100" id="proveedores_dropdown" style="position: absolute; display: none; z-index: 1050;"></div>
+                                    </div>
+                                    <button class="btn btn-outline-primary btn-sm" type="button" id="btn_nuevo_proveedor" data-bs-toggle="modal" data-bs-target="#modal_nuevo_proveedor" style="height: 32px;">
+                                        <i class="fas fa-plus"></i> Nuevo
+                                    </button>
+                                </div>
+                                <input type="hidden" name="proveedor_id" id="proveedor_id">
+                                <div id="proveedor_seleccionado_card" class="mt-2 p-2 border rounded bg-light" style="display: none; font-size: 13px;">
+                                    <strong>Proveedor Seleccionado:</strong> <span id="proveedor_seleccionado_nombre" class="fw-bold"></span> 
+                                    <button type="button" class="btn-close float-end" id="btn_quitar_proveedor" style="font-size: 10px;"></button>
+                                </div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Sucursal / Almacén</label>
@@ -187,6 +203,8 @@
             </div>
         </form>
     </div>
+    @include('admin.layouts.partials.modal-cliente')
+    @include('admin.layouts.partials.modal-proveedor')
 @endsection
 
 @push('js')
@@ -194,24 +212,147 @@
     <script>
         $(document).ready(function() {
             const PRODUCTOS = JSON.parse(@json($productos->toJson()));
+            const CLIENTES = @json($clientes);
+            const PROVEEDORES = @json($proveedores);
             let selectedItem = null;
             let rowCount = 0;
 
-            $('.selectpicker').selectpicker();
+            // --- CLIENT SEARCH LOGIC ---
+            $('#cliente_search_input').on('input', function() {
+                const q = $(this).val().toLowerCase().trim();
+                const dropdown = $('#clientes_dropdown');
+                if (q.length < 1) { dropdown.hide(); return; }
 
-            // Cliente/Proveedor: solo uno a la vez (misma lÃ³gica que conversiÃ³n)
-            $('#cliente_id').on('changed.bs.select', function() {
-                const val = $(this).val();
-                if (val) {
-                    $('#proveedor_id').val('').selectpicker('refresh');
+                const matches = CLIENTES.filter(c => 
+                    c.persona.razon_social.toLowerCase().includes(q) || 
+                    (c.persona.numero_documento && c.persona.numero_documento.toLowerCase().includes(q))
+                ).slice(0, 10);
+
+                dropdown.empty();
+                if (matches.length === 0) {
+                    dropdown.append('<div class="p-3 text-muted small text-center">No se encontraron clientes</div>').show();
+                    return;
                 }
+
+                matches.forEach(c => {
+                    const item = $(`
+                        <div class="product-item">
+                            <div>
+                                <div class="prod-main">${c.persona.razon_social}</div>
+                                <div class="prod-sub">${c.persona.numero_documento || 'Sin doc'}</div>
+                            </div>
+                        </div>
+                    `);
+
+                    item.on('click', () => {
+                        selectCliente(c.id, c.persona.razon_social);
+                    });
+                    dropdown.append(item);
+                });
+                dropdown.show();
             });
-            $('#proveedor_id').on('changed.bs.select', function() {
-                const val = $(this).val();
-                if (val) {
-                    $('#cliente_id').val('').selectpicker('refresh');
+
+            // --- PROVEEDOR SEARCH LOGIC ---
+            $('#proveedor_search_input').on('input', function() {
+                const q = $(this).val().toLowerCase().trim();
+                const dropdown = $('#proveedores_dropdown');
+                if (q.length < 1) { dropdown.hide(); return; }
+
+                const matches = PROVEEDORES.filter(p => 
+                    p.persona.razon_social.toLowerCase().includes(q) || 
+                    (p.persona.numero_documento && p.persona.numero_documento.toLowerCase().includes(q))
+                ).slice(0, 10);
+
+                dropdown.empty();
+                if (matches.length === 0) {
+                    dropdown.append('<div class="p-3 text-muted small text-center">No se encontraron proveedores</div>').show();
+                    return;
                 }
+
+                matches.forEach(p => {
+                    const item = $(`
+                        <div class="product-item">
+                            <div>
+                                <div class="prod-main">${p.persona.razon_social}</div>
+                                <div class="prod-sub">${p.persona.numero_documento || 'Sin doc'}</div>
+                            </div>
+                        </div>
+                    `);
+
+                    item.on('click', () => {
+                        selectProveedor(p.id, p.persona.razon_social);
+                    });
+                    dropdown.append(item);
+                });
+                dropdown.show();
             });
+
+            $(document).on('click', (e) => {
+                if (!$(e.target).closest('.search-wrapper').length) $('#clientes_dropdown').hide();
+                if (!$(e.target).closest('.search-wrapper-prov').length) $('#proveedores_dropdown').hide();
+            });
+
+            function selectCliente(id, name) {
+                $('#cliente_id').val(id);
+                $('#cliente_seleccionado_nombre').text(name);
+                $('#cliente_seleccionado_card').show();
+                $('#cliente_search_input').hide();
+                $('#clientes_dropdown').hide();
+
+                // Quitar el proveedor si está seleccionado (mutuamente excluyentes)
+                if ($('#proveedor_id').val()) {
+                    $('#btn_quitar_proveedor').click();
+                }
+            }
+
+            $('#btn_quitar_cliente').on('click', function() {
+                $('#cliente_id').val('');
+                $('#cliente_seleccionado_card').hide();
+                $('#cliente_search_input').val('').show();
+            });
+
+            function selectProveedor(id, name) {
+                $('#proveedor_id').val(id);
+                $('#proveedor_seleccionado_nombre').text(name);
+                $('#proveedor_seleccionado_card').show();
+                $('#proveedor_search_input').hide();
+                $('#proveedores_dropdown').hide();
+
+                // Quitar el cliente si está seleccionado (mutuamente excluyentes)
+                if ($('#cliente_id').val()) {
+                    $('#btn_quitar_cliente').click();
+                }
+            }
+
+            $('#btn_quitar_proveedor').on('click', function() {
+                $('#proveedor_id').val('');
+                $('#proveedor_seleccionado_card').hide();
+                $('#proveedor_search_input').val('').show();
+            });
+
+            window.onClienteCreado = function(cliente) {
+                CLIENTES.push({
+                    id: cliente.id,
+                    persona: {
+                        razon_social: cliente.razon_social,
+                        numero_documento: cliente.numero_documento
+                    }
+                });
+                selectCliente(cliente.id, cliente.razon_social);
+            };
+
+            window.onProveedorCreado = function(proveedor) {
+                PROVEEDORES.push({
+                    id: proveedor.id,
+                    persona: {
+                        razon_social: proveedor.razon_social,
+                        numero_documento: proveedor.numero_documento
+                    }
+                });
+                selectProveedor(proveedor.id, proveedor.razon_social);
+            };
+
+            $('.selectpicker').selectpicker();
 
             // --- Búsqueda de Productos ---
             $('#producto_search').on('input', function() {

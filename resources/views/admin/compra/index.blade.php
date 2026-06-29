@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Compras')
 
@@ -783,10 +783,10 @@
 
         if (e.target.closest('tr[data-compra-id]') && !e.target.closest('.btn-action-group') && !e.target.closest('.custom-checkbox') && !e.target.closest('.dropdown')) {
             const row = e.target.closest('tr[data-compra-id]');
-            const checkbox = row.querySelector('.compra-checkbox');
+            const viewBtn = row.querySelector('.view-compra');
 
-            if (checkbox) {
-                checkbox.click();
+            if (viewBtn) {
+                viewBtn.click();
             }
         }
     });

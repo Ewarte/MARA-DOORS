@@ -182,7 +182,7 @@
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body p-4 text-center">
-                                                <h6 class="mb-3">{{ $item->persona->estado == 1 ? 'Â¿Eliminar proveedor?' : 'Â¿Restaurar proveedor?' }}</h6>
+                                                <h6 class="mb-3">{{ $item->persona->estado == 1 ? '¿Eliminar proveedor?' : '¿Restaurar proveedor?' }}</h6>
                                                 <p class="text-muted small mb-4">
                                                     {{ $item->persona->estado == 1
                                                         ? 'El proveedor se desactivara del sistema.'

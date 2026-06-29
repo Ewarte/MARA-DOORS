@@ -389,11 +389,16 @@
 
             async function fetchStock(productoId, almacenId) {
                 const mySeq = ++stockRequestSeq;
-                const res = await $.ajax({
+                const raw = await $.ajax({
                     url: '{{ route("ventas.check-stock") }}',
                     method: 'GET',
+                    dataType: 'text',
                     data: { producto_id: productoId, almacen_id: almacenId }
                 });
+
+                const cleanRaw = typeof raw === 'string' ? raw.replace(/^\uFEFF/, '').trim() : raw;
+                const res = typeof cleanRaw === 'string' ? JSON.parse(cleanRaw) : cleanRaw;
+
                 return { res, mySeq };
             }
 
@@ -403,6 +408,8 @@
                     const firstError = Object.values(err.responseJSON.errors)[0];
                     if (Array.isArray(firstError) && firstError.length) return firstError[0];
                 }
+                if (err?.message) return err.message;
+                if (typeof err === 'string' && err.trim()) return err;
                 if (err?.status === 403) return 'No tienes acceso al almacén seleccionado.';
                 if (err?.status === 404) return 'No se encontró la ruta para consultar stock.';
                 if (err?.status === 422) return 'Los datos enviados para consultar stock no son válidos.';
@@ -478,8 +485,21 @@
                         setStockBadge(res.stock, ilimitado);
 
                         $('#selection_card').slideDown();
+                    } else {
+                        Swal.fire("Error", "No se pudo consultar el stock", "error");
                     }
-                } catch (e) { Swal.fire("Error", getAjaxErrorMessage(e), "error"); }
+                } catch (e) {
+                    console.error('Error al seleccionar producto en venta/edit', {
+                        producto: p,
+                        almacenId: storageId,
+                        status: e?.status,
+                        message: e?.message,
+                        stack: e?.stack,
+                        responseJSON: e?.responseJSON,
+                        responseText: e?.responseText
+                    });
+                    Swal.fire("Error", getAjaxErrorMessage(e), "error");
+                }
             }
 
             async function refreshSelectedStockForAlmacen(almacenId) {
@@ -501,6 +521,15 @@
                     selectedItem.ilimitado = ilimitado;
                     setStockBadge(res.stock, ilimitado);
                 } catch (err) {
+                    console.error('Error al refrescar stock en venta/edit', {
+                        producto: selectedItem,
+                        almacenId,
+                        status: err?.status,
+                        message: err?.message,
+                        stack: err?.stack,
+                        responseJSON: err?.responseJSON,
+                        responseText: err?.responseText
+                    });
                     Swal.fire("Error", getAjaxErrorMessage(err), "error");
                 }
             }

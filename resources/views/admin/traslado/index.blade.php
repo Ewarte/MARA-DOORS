@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Traslados')
 
@@ -663,10 +663,10 @@
         if (e.target.closest('tr[data-traslado-id]') && !e.target.closest('.btn-action-group') && !e.target.closest('.custom-checkbox') && !e.target.closest('select') && !e.target.closest('form')) {
             const row = e.target.closest('tr[data-traslado-id]');
             const trasladoId = row.dataset.trasladoId;
-            const checkbox = row.querySelector('.traslado-checkbox');
+            const viewBtn = row.querySelector(`[data-bs-target="#verModal-${trasladoId}"]`);
             
-            if (checkbox) {
-                checkbox.click();
+            if (viewBtn) {
+                viewBtn.click();
             }
         }
     });

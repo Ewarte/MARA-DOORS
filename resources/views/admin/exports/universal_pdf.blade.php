@@ -70,7 +70,7 @@
     <table class="header-table">
         <tr>
             <td width="60%">
-                <div class="company-name">Mara-doors</div>
+                <div class="company-name">HIERROPAR</div>
                 <div style="font-size:10px; color:#666;">Sistema de Gestión de Inventario</div>
             </td>
             <td width="40%" style="text-align: right;">

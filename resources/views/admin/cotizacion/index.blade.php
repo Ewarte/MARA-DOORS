@@ -843,8 +843,8 @@
             !e.target.closest('.custom-checkbox') &&
             !e.target.closest('.dropdown')) {
             const row = e.target.closest('tr[data-cotizacion-id]');
-            const checkbox = row.querySelector('.cotizacion-checkbox');
-            if (checkbox) checkbox.click();
+            const viewBtn = row.querySelector('.view-cotizacion');
+            if (viewBtn) viewBtn.click();
         }
     });
 

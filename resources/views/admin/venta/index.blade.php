@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Ventas')
 
@@ -797,10 +797,10 @@
 
         if (e.target.closest('tr[data-venta-id]') && !e.target.closest('.btn-action-group') && !e.target.closest('.custom-checkbox') && !e.target.closest('.dropdown')) {
             const row = e.target.closest('tr[data-venta-id]');
-            const checkbox = row.querySelector('.venta-checkbox');
+            const viewBtn = row.querySelector('.view-venta');
 
-            if (checkbox) {
-                checkbox.click();
+            if (viewBtn) {
+                viewBtn.click();
             }
         }
     });

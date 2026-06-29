@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Productos')
 
@@ -295,9 +295,9 @@
                                             <div class="modal-body p-4 text-center">
                                                 <h6 class="mb-3">
                                                     @if($item->estado == 1)
-                                                        Â¿Eliminar o Desactivar producto?
+                                                        ¿Eliminar o Desactivar producto?
                                                     @else
-                                                        Â¿Restaurar producto?
+                                                        ¿Restaurar producto?
                                                     @endif
                                                 </h6>
                                                 <p class="text-muted small mb-4">
@@ -720,10 +720,10 @@
         if (e.target.closest('tr[data-product-id]') && !e.target.closest('.btn-action-group') && !e.target.closest('.custom-checkbox')) {
             const row = e.target.closest('tr[data-product-id]');
             const productId = row.dataset.productId;
-            const checkbox = row.querySelector('.product-checkbox');
+            const viewBtn = row.querySelector(`[data-bs-target="#verModal-${productId}"]`);
 
-            if (checkbox) {
-                checkbox.click();
+            if (viewBtn) {
+                viewBtn.click();
             }
         }
     });

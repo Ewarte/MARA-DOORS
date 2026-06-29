@@ -144,13 +144,33 @@ class ClienteController extends Controller
             unset($validated['grupo_cliente_id']);
 
             $persona = Persona::create($validated);
-            $persona->cliente()->create([
+            $cliente = $persona->cliente()->create([
                 'persona_id' => $persona->id,
                 'grupo_cliente_id' => $grupoClienteId,
             ]);
             DB::commit();
+
+            if ($request->ajax()) {
+                $cliente->load('grupo');
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Cliente registrado correctamente.',
+                    'cliente' => [
+                        'id' => $cliente->id,
+                        'razon_social' => $persona->razon_social,
+                        'numero_documento' => $persona->numero_documento,
+                        'descuento' => $cliente->grupo->descuento_global ?? 0
+                    ]
+                ]);
+            }
         } catch (Exception $e) {
             DB::rollBack();
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al registrar el cliente: ' . $e->getMessage()
+                ], 422);
+            }
         }
 
         return redirect()->route('clientes.index')->with('success', 'Cliente registrado');
@@ -217,6 +237,16 @@ class ClienteController extends Controller
         }
 
         return redirect()->route('clientes.index')->with('success', $message);
+    }
+
+    public function getMetadata()
+    {
+        $documentos = Documento::all();
+        $grupos = GrupoCliente::where('estado', 1)->orderBy('nombre')->get();
+        return response()->json([
+            'documentos' => $documentos,
+            'grupos' => $grupos
+        ]);
     }
 }
 

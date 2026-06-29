@@ -119,7 +119,7 @@
                                             @method('PATCH')
                                             <button type="submit" class="btn-icon-soft {{ $item->estado ? 'delete' : '' }}"
                                                 title="{{ $item->estado ? 'Dar de baja' : 'Activar' }}"
-                                                onclick="return confirm('Â¿Seguro que deseas cambiar el estado del almacén?')">
+                                                onclick="return confirm('¿Seguro que deseas cambiar el estado del almacén?')">
                                                 @if($item->estado == '1')
                                                     <i class="fas fa-trash"></i>
                                                 @else

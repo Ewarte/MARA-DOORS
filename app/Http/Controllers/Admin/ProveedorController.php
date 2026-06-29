@@ -97,13 +97,32 @@ class ProveedorController extends Controller
         try {
             DB::beginTransaction();
             $persona = Persona::create($request->validated());
-            $persona->proveedor()->create([
+            $proveedor = $persona->proveedor()->create([
                 'persona_id' => $persona->id
             ]);
             DB::commit();
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Proveedor registrado correctamente.',
+                    'proveedor' => [
+                        'id' => $proveedor->id,
+                        'razon_social' => $persona->razon_social,
+                        'numero_documento' => $persona->numero_documento
+                    ]
+                ]);
+            }
+
             return redirect()->route('proveedores.index')->with('success', 'Proveedor registrado correctamente');
         } catch (Exception $e) {
             DB::rollBack();
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al registrar el proveedor: ' . $e->getMessage()
+                ], 422);
+            }
             return redirect()->back()->withInput()->with('error', 'Error al registrar el proveedor: ' . $e->getMessage());
         }
     }
