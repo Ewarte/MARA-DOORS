@@ -88,6 +88,12 @@ class ProductoService
     public function eliminarProducto(Producto $producto)
     {
         return DB::transaction(function () use ($producto) {
+            // Si el producto ya participó en compras o ventas, no debe borrarse físicamente
+            // porque hay llaves foráneas con restricción en las tablas detalle_*.
+            if ($producto->detalleCompras()->exists() || $producto->detalleVentas()->exists()) {
+                throw new \Exception('No se puede eliminar el producto porque ya tiene compras o ventas registradas. Use "Desactivar" en su lugar.');
+            }
+
             // Eliminar inventarios relacionados
             $producto->inventarios()->delete();
 

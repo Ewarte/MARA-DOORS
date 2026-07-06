@@ -15,6 +15,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Log;
 
 class CotizacionController extends Controller
 {
@@ -24,10 +25,10 @@ class CotizacionController extends Controller
     public function __construct(CotizacionService $cotizacionService)
     {
         $this->cotizacionService = $cotizacionService;
-        $this->middleware('permission:ver-cotizacion|crear-cotizacion|mostrar-cotizacion|eliminar-cotizacion', ['only' => ['index', 'show']]);
-        $this->middleware('permission:crear-cotizacion', ['only' => ['create', 'store']]);
-        $this->middleware('permission:editar-cotizacion', ['only' => ['edit', 'update']]);
-        $this->middleware('permission:eliminar-cotizacion', ['only' => ['destroy']]);
+        $this->middleware('role_or_permission:ADMINISTRADOR|Administrador|Admin|Super Admin|Trabajador Almacén|cajero|ver-cotizacion|crear-cotizacion|mostrar-cotizacion|eliminar-cotizacion', ['only' => ['index', 'show']]);
+        $this->middleware('role_or_permission:ADMINISTRADOR|Administrador|Admin|Super Admin|Trabajador Almacén|cajero|crear-cotizacion', ['only' => ['create', 'store']]);
+        $this->middleware('role_or_permission:ADMINISTRADOR|Administrador|Admin|Super Admin|Trabajador Almacén|cajero|editar-cotizacion', ['only' => ['edit', 'update']]);
+        $this->middleware('role_or_permission:ADMINISTRADOR|Administrador|Admin|Super Admin|Trabajador Almacén|cajero|eliminar-cotizacion', ['only' => ['destroy']]);
     }
 
     public function index(Request $request)
@@ -72,13 +73,14 @@ class CotizacionController extends Controller
         $productos = Producto::where('estado', 1)->get(['id', 'codigo', 'nombre', 'precio_venta', 'precio_compra']);
         $clientes = Cliente::with('persona')->get();
         $proveedores = Proveedor::with('persona')->get();
+        $comprobantes = Comprobante::all();
         
         $userAlmacenId = auth()->user()->almacen_id;
         $almacenes = $userAlmacenId ? Almacen::where('id', $userAlmacenId)->get() : Almacen::where('estado', 1)->get();
         
         $nextCotizacionNumber = $this->getNextNumero();
 
-        return view('admin.cotizacion.create', compact('productos', 'clientes', 'proveedores', 'almacenes', 'nextCotizacionNumber'));
+        return view('admin.cotizacion.create', compact('productos', 'clientes', 'proveedores', 'almacenes', 'nextCotizacionNumber', 'comprobantes'));
     }
 
     public function store(Request $request)
@@ -131,10 +133,11 @@ class CotizacionController extends Controller
         $productos = Producto::where('estado', 1)->get();
         $clientes = Cliente::with('persona')->get();
         $proveedores = Proveedor::with('persona')->get();
+        $comprobantes = Comprobante::all();
         $userAlmacenId = auth()->user()->almacen_id;
         $almacenes = $userAlmacenId ? Almacen::where('id', $userAlmacenId)->get() : Almacen::where('estado', 1)->get();
 
-        return view('admin.cotizacion.edit', compact('cotizacion', 'productos', 'clientes', 'proveedores', 'almacenes'));
+        return view('admin.cotizacion.edit', compact('cotizacion', 'productos', 'clientes', 'proveedores', 'almacenes', 'comprobantes'));
     }
 
     public function update(Request $request, Cotizacion $cotizacion)
@@ -177,11 +180,33 @@ class CotizacionController extends Controller
         }
     }
 
+    /**
+     * Actualiza el estado de una cotización vía AJAX (desde el dropdown de la tabla)
+     */
+    public function actualizarEstado(Request $request, Cotizacion $cotizacion)
+    {
+        try {
+            $request->validate([
+                'estado' => ['required', 'in:pendiente,venta_realizada,compra_realizada,anulado'],
+            ]);
+
+            $cotizacion->update(['estado' => $request->estado]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Estado actualizado a: ' . ucfirst(str_replace('_', ' ', $request->estado)),
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error actualizando estado cotización: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+        }
+    }
+
     public function convertirVenta(Request $request, Cotizacion $cotizacion)
     {
         try {
             $this->cotizacionService->convertirAVenta($cotizacion, $request->all());
-            return response()->json(['success' => true, 'message' => 'Convertido a venta exitosamente']);
+            return response()->json(['success' => true, 'message' => 'Cotización convertida a Venta exitosamente']);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
         }
@@ -191,7 +216,7 @@ class CotizacionController extends Controller
     {
         try {
             $this->cotizacionService->convertirACompra($cotizacion, $request->all());
-            return response()->json(['success' => true, 'message' => 'Convertido a compra exitosamente']);
+            return response()->json(['success' => true, 'message' => 'Cotización convertida a Compra exitosamente']);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
         }

@@ -56,11 +56,21 @@
                     <div class="border-section">
                         <div class="section-title"><i class="fas fa-info-circle"></i> Datos de la transacción</div>
                         <div class="row g-4">
-                            <div class="col-md-4">
+                            <!-- Fila 1 -->
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo de Cotización</label>
+                                <select id="tipo_cotizacion" name="tipo_cotizacion" class="form-select form-select-sm" style="border-radius: 6px; height: 32px;">
+                                    <option value="venta" selected>Venta (A Cliente)</option>
+                                    <option value="compra">Compra (A Proveedor)</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Cliente (Se muestra por defecto) -->
+                            <div class="col-md-5" id="wrapper_cliente">
                                 <label class="form-label">Cliente (Opcional)</label>
                                 <div class="input-group input-group-sm">
                                     <div class="position-relative flex-grow-1 search-wrapper">
-                                        <input type="text" id="cliente_search_input" class="form-control form-control-sm" placeholder="Buscar cliente por nombre o documento..." autocomplete="off">
+                                        <input type="text" id="cliente_search_input" class="form-control form-control-sm" placeholder="Buscar cliente..." autocomplete="off">
                                         <div class="products-dropdown w-100" id="clientes_dropdown" style="position: absolute; display: none; z-index: 1050;"></div>
                                     </div>
                                     <button class="btn btn-outline-primary btn-sm" type="button" id="btn_nuevo_cliente" data-bs-toggle="modal" data-bs-target="#modal_nuevo_cliente" style="height: 32px;">
@@ -73,11 +83,13 @@
                                     <button type="button" class="btn-close float-end" id="btn_quitar_cliente" style="font-size: 10px;"></button>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+
+                            <!-- Proveedor (Oculto por defecto) -->
+                            <div class="col-md-5" id="wrapper_proveedor" style="display: none;">
                                 <label class="form-label">Proveedor (Opcional)</label>
                                 <div class="input-group input-group-sm">
                                     <div class="position-relative flex-grow-1 search-wrapper-prov">
-                                        <input type="text" id="proveedor_search_input" class="form-control form-control-sm" placeholder="Buscar proveedor por nombre o documento..." autocomplete="off">
+                                        <input type="text" id="proveedor_search_input" class="form-control form-control-sm" placeholder="Buscar proveedor..." autocomplete="off">
                                         <div class="products-dropdown w-100" id="proveedores_dropdown" style="position: absolute; display: none; z-index: 1050;"></div>
                                     </div>
                                     <button class="btn btn-outline-primary btn-sm" type="button" id="btn_nuevo_proveedor" data-bs-toggle="modal" data-bs-target="#modal_nuevo_proveedor" style="height: 32px;">
@@ -90,6 +102,7 @@
                                     <button type="button" class="btn-close float-end" id="btn_quitar_proveedor" style="font-size: 10px;"></button>
                                 </div>
                             </div>
+
                             <div class="col-md-4">
                                 <label class="form-label">Sucursal / Almacén</label>
                                 <select name="almacen_id" class="form-control selectpicker" data-style="btn-outline-secondary btn-sm" required>
@@ -98,15 +111,17 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-3">
+
+                            <!-- Fila 2 -->
+                            <div class="col-md-4">
                                 <label class="form-label">Número de Cotización</label>
                                 <input type="text" name="numero_cotizacion" class="form-control form-control-sm h-40" value="{{ $nextCotizacionNumber }}" required style="border-radius: 8px;">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label">Fecha de Emisión</label>
                                 <input type="datetime-local" name="fecha_hora" class="form-control form-control-sm h-40" value="{{ now()->format('Y-m-d\TH:i') }}" required style="border-radius: 8px;">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label">Vencimiento</label>
                                 <input type="date" name="vencimiento" class="form-control form-control-sm h-40" value="{{ now()->addDays(7)->format('Y-m-d') }}" style="border-radius: 8px;">
                             </div>
@@ -128,6 +143,7 @@
                                 <button type="button" class="btn-close" onclick="$('#selection_card').slideUp()"></button>
                             </div>
                             <div class="row g-3 align-items-end">
+                                <!-- Precio Venta (el) -->
                                 <div class="col-md-3">
                                     <label class="form-label">Precio Unitario (Bs.)</label>
                                     <div class="input-group input-group-sm">
@@ -216,6 +232,20 @@
             const PROVEEDORES = @json($proveedores);
             let selectedItem = null;
             let rowCount = 0;
+
+            // --- TIPO DE COTIZACION TOGGLE ---
+            $('#tipo_cotizacion').on('change', function() {
+                const tipo = $(this).val();
+                if (tipo === 'venta') {
+                    $('#wrapper_proveedor').hide();
+                    $('#btn_quitar_proveedor').click(); // Limpia seleccion prov
+                    $('#wrapper_cliente').fadeIn();
+                } else {
+                    $('#wrapper_cliente').hide();
+                    $('#btn_quitar_cliente').click(); // Limpia seleccion cli
+                    $('#wrapper_proveedor').fadeIn();
+                }
+            });
 
             // --- CLIENT SEARCH LOGIC ---
             $('#cliente_search_input').on('input', function() {

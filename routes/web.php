@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\Admin\AlmacenController;
 use App\Http\Controllers\Admin\CategoriaController;
@@ -81,6 +81,7 @@ Route::prefix('admin')->group(function () {
         Route::prefix('cotizaciones')->name('cotizaciones.')->group(function () {
             Route::post('/{cotizacion}/convertir-venta', [CotizacionController::class, 'convertirVenta'])->name('convertir-venta');
             Route::post('/{cotizacion}/convertir-compra', [CotizacionController::class, 'convertirCompra'])->name('convertir-compra');
+            Route::put('/{cotizacion}/estado', [CotizacionController::class, 'actualizarEstado'])->name('estado');
             Route::get('/pdf/{cotizacion}', [CotizacionController::class, 'generarPdf'])->name('pdf');
         });
 

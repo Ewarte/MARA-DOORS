@@ -15,8 +15,8 @@ trait FilterByAlmacen
     {
         $user = auth()->user();
         
-        // Si el usuario es admin (sin almacén asignado), devolver todos
-        if (!$user->almacen_id) {
+        // Si el usuario es admin (tiene rol de administrador) o no tiene almacén asignado, devolver todos
+        if ($user->hasRole(['ADMINISTRADOR', 'Administrador', 'Admin', 'Super Admin']) || !$user->almacen_id) {
             return $query;
         }
         
@@ -33,7 +33,7 @@ trait FilterByAlmacen
         $user = auth()->user();
         
         // Admin puede acceder a todo
-        if (!$user->almacen_id) {
+        if ($user->hasRole(['ADMINISTRADOR', 'Administrador', 'Admin', 'Super Admin']) || !$user->almacen_id) {
             return true;
         }
         
@@ -50,11 +50,12 @@ trait FilterByAlmacen
         $user = auth()->user();
         $query = \App\Models\Almacen::where('estado', true);
         
-        // Si el usuario tiene almacén (trabajador), excluir el suyo como destino
-        if ($user->almacen_id) {
+        // Si el usuario tiene almacén (trabajador) y no es admin, excluir el suyo como destino
+        if ($user->almacen_id && !$user->hasRole(['ADMINISTRADOR', 'Administrador', 'Admin', 'Super Admin'])) {
             $query->where('id', '!=', $user->almacen_id);
         }
         
         return $query->get();
     }
 }
+

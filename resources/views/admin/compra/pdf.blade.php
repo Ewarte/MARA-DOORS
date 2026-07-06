@@ -97,7 +97,7 @@
         <tr>
             <td width="60%">
                 <div class="company-name">HIERROPAR</div>
-                <div style="font-size:10px;">Ballivian entre 13 y 14 - Telf: 71190122</div>
+                <div style="font-size:10px;">Ballivian entre 12 y 13 - Telf: 77195187</div>
             </td>
             <td width="40%" class="text-right">
                 <div class="doc-title">NOTA DE COMPRA</div>

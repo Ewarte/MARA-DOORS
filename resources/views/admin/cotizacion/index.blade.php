@@ -30,12 +30,12 @@
             font-size: 0.8rem;
             padding: 8px 16px;
         }
-        .badge-info { background-color: #0dcaf0; color: white; }
-        .badge-success { background-color: #198754; color: white; }
-        .badge-primary { background-color: #0d6efd; color: white; }
-        .badge-danger { background-color: #dc3545; color: white; }
-        .badge-warning { background-color: #ffc107; color: #000; }
-        .badge-secondary { background-color: #6c757d; color: white; }
+        .badge-info { background-color: #cff4fc; color: #055160; }
+        .badge-success { background-color: #d1e7dd; color: #0f5132; }
+        .badge-primary { background-color: #cfe2ff; color: #084298; }
+        .badge-danger { background-color: #f8d7da; color: #842029; }
+        .badge-warning { background-color: #fff3cd; color: #664d03; }
+        .badge-secondary { background-color: #e2e3e5; color: #41464b; }
 
         .text-orange { color: #fd7e14; }
 
@@ -303,6 +303,9 @@
                                     </button>
                                 </th>
                                 <th class="text-center">
+                                    Vencimiento
+                                </th>
+                                <th class="text-center">
                                     <button class="sort-btn {{ $sort == 'total' ? 'active ' . $direction : '' }}" data-column="total">
                                         Total <i class="fas fa-sort sort-icon"></i>
                                     </button>
@@ -317,6 +320,11 @@
                         </thead>
                         <tbody>
                             @forelse ($cotizaciones as $cotizacion)
+                                @php
+                                    $hoy = \Carbon\Carbon::today();
+                                    $venc = $cotizacion->vencimiento ? \Carbon\Carbon::parse($cotizacion->vencimiento) : null;
+                                    $vencDiff = $venc ? (int)$hoy->diffInDays($venc, false) : null;
+                                @endphp
                                 <tr data-cotizacion-id="{{ $cotizacion->id }}">
                                     <td class="checkbox-cell">
                                         <div class="custom-checkbox cotizacion-checkbox" data-cotizacion-id="{{ $cotizacion->id }}"></div>
@@ -337,30 +345,45 @@
                                             <div class="fw-semibold text-primary">
                                                 <i class="fas fa-user me-1"></i> {{ $cotizacion->cliente->persona->razon_social }}
                                             </div>
-                                            <div class="info-subtext">Cliente • {{ $cotizacion->cliente->persona->numero_documento ?? 'N/A' }}</div>
+                                            <div class="info-subtext">Cliente &middot; {{ $cotizacion->cliente->persona->numero_documento ?? 'N/A' }}</div>
                                         @elseif($cotizacion->proveedor)
                                             <div class="fw-semibold text-orange">
                                                 <i class="fas fa-truck me-1"></i> {{ $cotizacion->proveedor->persona->razon_social }}
                                             </div>
-                                            <div class="info-subtext">Proveedor • {{ $cotizacion->proveedor->persona->numero_documento ?? 'N/A' }}</div>
+                                            <div class="info-subtext">Proveedor &middot; {{ $cotizacion->proveedor->persona->numero_documento ?? 'N/A' }}</div>
                                         @else
                                             <div class="fw-semibold text-muted">
-                                                <i class="fas fa-users me-1"></i> Público General
+                                                <i class="fas fa-users me-1"></i> Publico General
                                             </div>
                                             <div class="info-subtext">Sin documento</div>
                                         @endif
                                     </td>
                                     <td>
-                                        <div>
-                                            <div class="fw-semibold">
-                                                <i class="fas fa-calendar-day me-1 text-muted small"></i>
-                                                {{ $cotizacion->fecha_hora->format('d/m/Y') }}
-                                            </div>
-                                            <div class="info-subtext">
-                                                <i class="fas fa-clock me-1 small"></i>
-                                                {{ $cotizacion->fecha_hora->format('H:i') }}
-                                            </div>
+                                        <div class="fw-semibold">
+                                            <i class="fas fa-calendar-day me-1 text-muted small"></i>
+                                            {{ $cotizacion->fecha_hora->format('d/m/Y') }}
                                         </div>
+                                        <div class="info-subtext">
+                                            <i class="fas fa-clock me-1 small"></i>
+                                            {{ $cotizacion->fecha_hora->format('H:i') }}
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        @if($venc)
+                                            @if($vencDiff < 0)
+                                                <span class="badge" style="background:#f8d7da;color:#721c24;border-radius:20px;font-size:0.7rem;" title="Vencida hace {{ abs($vencDiff) }} dia(s)">
+                                                    <i class="fas fa-times-circle me-1"></i>{{ $venc->format('d/m/Y') }}
+                                                </span>
+                                            @elseif($vencDiff <= 3)
+                                                <span class="badge" style="background:#fff3cd;color:#856404;border-radius:20px;font-size:0.7rem;" title="Vence en {{ $vencDiff }} dia(s)">
+                                                    <i class="fas fa-exclamation-triangle me-1"></i>{{ $venc->format('d/m/Y') }}
+                                                </span>
+                                            @else
+                                                <span style="font-size:0.78rem;color:#6c757d;">{{ $venc->format('d/m/Y') }}</span>
+                                            @endif
+                                        @else
+                                            <span class="text-muted" style="font-size:0.78rem;">-</span>
+                                        @endif
                                     </td>
                                     <td class="text-center">
                                         <span class="fw-bold text-success">Bs. {{ number_format($cotizacion->total, 2) }}</span>
@@ -369,30 +392,36 @@
                                         <div class="dropdown custom-dropdown">
                                             @php
                                                 $estadoClases = [
-                                                    'pendiente' => 'badge-info',
-                                                    'venta_realizada' => 'badge-success',
+                                                    'pendiente'        => 'badge-info',
+                                                    'venta_realizada'  => 'badge-success',
                                                     'compra_realizada' => 'badge-primary',
-                                                    'anulado' => 'badge-danger'
+                                                    'anulado'          => 'badge-danger'
                                                 ];
                                                 $estadoTextos = [
-                                                    'pendiente' => 'Pendiente',
-                                                    'venta_realizada' => 'Venta Realizada',
+                                                    'pendiente'        => 'Pendiente',
+                                                    'venta_realizada'  => 'Venta Realizada',
                                                     'compra_realizada' => 'Compra Realizada',
-                                                    'anulado' => 'Anulado'
+                                                    'anulado'          => 'Anulado'
                                                 ];
                                                 $clase = $estadoClases[$cotizacion->estado] ?? 'badge-secondary';
                                                 $texto = $estadoTextos[$cotizacion->estado] ?? ucfirst($cotizacion->estado);
+                                                
+                                                // Si ya se realizo la venta o compra, no deberia poder cambiarse libremente
+                                                $isRealizado = in_array($cotizacion->estado, ['venta_realizada', 'compra_realizada']);
                                             @endphp
-                                            <button class="status-btn badge-pill {{ $clase }} dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <button class="status-btn badge-pill {{ $clase }} @if(!$isRealizado && auth()->user()->can('editar-cotizacion')) dropdown-toggle @endif" 
+                                                    type="button" 
+                                                    @if(!$isRealizado && auth()->user()->can('editar-cotizacion')) data-bs-toggle="dropdown" aria-expanded="false" @else disabled style="opacity:1;cursor:default;" @endif>
                                                 {{ $texto }}
                                             </button>
+                                            
+                                            @if(!$isRealizado && auth()->user()->can('editar-cotizacion'))
                                             <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
                                                 <li><a class="dropdown-item change-status" href="#" data-cotizacion-id="{{ $cotizacion->id }}" data-status="pendiente">Pendiente</a></li>
-                                                <li><a class="dropdown-item change-status" href="#" data-cotizacion-id="{{ $cotizacion->id }}" data-status="venta_realizada">Venta Realizada</a></li>
-                                                <li><a class="dropdown-item change-status" href="#" data-cotizacion-id="{{ $cotizacion->id }}" data-status="compra_realizada">Compra Realizada</a></li>
                                                 <li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item change-status text-danger" href="#" data-cotizacion-id="{{ $cotizacion->id }}" data-status="anulado">Anulado</a></li>
+                                                <li><a class="dropdown-item change-status text-danger" href="#" data-cotizacion-id="{{ $cotizacion->id }}" data-status="anulado">Anular Cotizacion</a></li>
                                             </ul>
+                                            @endif
                                         </div>
                                     </td>
                                     <td>
@@ -421,7 +450,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center py-5">
+                                    <td colspan="8" class="text-center py-5">
                                         <div class="text-muted">
                                             <i class="fas fa-inbox fa-3x mb-3 opacity-20"></i>
                                             <p>No se encontraron cotizaciones.</p>
@@ -431,11 +460,11 @@
                             @endforelse
                         </tbody>
 
-                        <!-- TFOOT con resumen (NUEVO - Como en Ventas) -->
+                        <!-- TFOOT con resumen -->
                         @if($cotizaciones->count() > 0)
                         <tfoot>
                             <tr class="table-totals">
-                                <td colspan="4" class="text-end">
+                                <td colspan="5" class="text-end">
                                     <span class="totals-label">RESUMEN GENERAL</span>
                                 </td>
                                 <td class="text-center">
@@ -469,13 +498,13 @@
         </div>
     </div>
 
-    <!-- Modal para ver cotización (Mejorado) -->
+    <!-- Modal para ver cotizacion -->
     <div class="modal fade" id="viewCotizacionModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content modal-content-clean">
                 <div class="modal-header modal-header-clean">
                     <h5 class="modal-title fs-6 fw-bold">
-                        <i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Detalles de la Cotización
+                        <i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Detalles de la Cotizacion
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -484,26 +513,29 @@
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Cargando...</span>
                         </div>
-                        <p class="mt-2 text-muted small">Cargando información...</p>
+                        <p class="mt-2 text-muted small">Cargando informacion...</p>
                     </div>
                 </div>
-                <div class="modal-footer border-0 d-flex justify-content-between" id="modalFooter">
-                    <div id="conversionButtons"></div>
+                <div class="modal-footer border-0 d-flex justify-content-between align-items-center" id="modalFooter">
+                    <div id="conversionButtons" class="d-flex gap-2 flex-wrap"></div>
                     <div class="d-flex gap-2">
-                        <button type="button" id="printButton" class="btn btn-outline-dark btn-sm px-4" title="Imprimir cotización">
+                        <button type="button" id="printButton" class="btn btn-outline-dark btn-sm px-3" title="Imprimir cotizacion">
                             <i class="fas fa-print me-1"></i> Imprimir
                         </button>
-                        <button type="button" class="btn btn-light btn-sm px-4" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="button" class="btn btn-light btn-sm px-3" data-bs-dismiss="modal">Cerrar</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Iframe oculto para impresión -->
+    <!-- Iframe oculto para impresion -->
     <iframe id="printFrame" style="display:none; position:absolute; width:0; height:0; border:0;"></iframe>
 
-    <!-- Modal de Exportación Genérico (NUEVO - Como en Ventas) -->
+    <!-- MODAL DE CONVERSION ELIMINADO (Reemplazado por confirmacion directa) -->
+
+
+    <!-- Modal de Exportacion -->
     <div class="modal fade" id="exportModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content modal-content-clean">
@@ -518,13 +550,11 @@
                     <div class="alert alert-success border-0 bg-success bg-opacity-10 d-flex align-items-center mb-4" id="exportAlert" style="border-radius: 12px;">
                         <i class="fas fa-info-circle me-3 fs-5 text-success" id="exportAlertIcon"></i>
                         <div class="small fw-medium text-success">
-                            Se exportarán <strong id="exportCountDisplay">0</strong> cotizaciones seleccionadas.
+                            Se exportaran <strong id="exportCountDisplay">0</strong> cotizaciones seleccionadas.
                         </div>
                     </div>
-
                     <div class="mb-3">
                         <label class="info-subtext mb-2 text-uppercase letter-spacing-05 small fw-bold">Opciones de Datos</label>
-
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" id="modalIncludeDetails" checked>
                             <label class="form-check-label d-block" for="modalIncludeDetails">
@@ -532,20 +562,18 @@
                                 <span class="extra-small text-muted">Productos, cantidades y precios unitarios</span>
                             </label>
                         </div>
-
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" id="modalIncludeClient" checked>
                             <label class="form-check-label d-block" for="modalIncludeClient">
-                                <span class="d-block fw-semibold small">Incluir información del cliente/proveedor</span>
+                                <span class="d-block fw-semibold small">Incluir informacion del cliente/proveedor</span>
                                 <span class="extra-small text-muted">Datos completos de contacto</span>
                             </label>
                         </div>
-
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="modalIncludeAllDetails" checked>
                             <label class="form-check-label d-block" for="modalIncludeAllDetails">
                                 <span class="d-block fw-semibold small">Incluir todos los detalles</span>
-                                <span class="extra-small text-muted">Estados, totales desglosados y almacén</span>
+                                <span class="extra-small text-muted">Estados, totales desglosados y almacen</span>
                             </label>
                         </div>
                     </div>
@@ -948,6 +976,14 @@
             confirmConversion(id, action);
         }
 
+        // Anular desde el modal
+        const annulBtn = e.target.closest('.change-status-modal');
+        if (annulBtn) {
+            const id = annulBtn.dataset.id;
+            const status = annulBtn.dataset.status;
+            updateCotizacionStatus(id, status);
+        }
+
         // Eliminar
         const delBtn = e.target.closest('.delete-cotizacion');
         if (delBtn) {
@@ -989,23 +1025,53 @@
                 modalContent.innerHTML = data.html;
                 currentPdfUrl = data.pdf_url || null;
 
-                // Botones de conversión solo si está pendiente
+                // Botones contextuales segun estado y tipo
                 if (data.cotizacion && data.cotizacion.estado === 'pendiente') {
-                    conversionButtons.innerHTML = `
-                        <a href="${cotizacionBaseUrl}/${id}/edit" class="btn btn-warning btn-sm me-2 text-white">
-                            <i class="fas fa-pen me-1"></i> Editar
-                        </a>
-                        <button class="btn btn-success btn-sm me-2 btn-convertir" data-id="${id}" data-action="venta">
-                            <i class="fas fa-shopping-cart me-1"></i> Convertir en Venta
-                        </button>
-                        <button class="btn btn-primary btn-sm btn-convertir" data-id="${id}" data-action="compra">
-                            <i class="fas fa-shopping-bag me-1"></i> Convertir en Compra
-                        </button>
-                    `;
+                    const cot = data.cotizacion;
+                    const tieneCliente   = cot.cliente_id;
+                    const tieneProveedor = cot.proveedor_id;
+                    
+                    let btns = '';
+                    
+                    @can('editar-cotizacion')
+                    btns += `<a href="${cotizacionBaseUrl}/${id}/edit" class="btn btn-warning btn-sm text-dark fw-bold border-0">
+                        <i class="fas fa-pen me-1"></i> Editar
+                    </a>`;
+                    
+                    if (tieneCliente || !tieneProveedor) {
+                        btns += `<button class="btn btn-success btn-sm btn-convertir ms-2 fw-bold border-0" data-id="${id}" data-action="venta">
+                            <i class="fas fa-shopping-cart me-1"></i> Convertir a Venta
+                        </button>`;
+                    }
+                    if (tieneProveedor || !tieneCliente) {
+                        btns += `<button class="btn btn-primary btn-sm btn-convertir ms-2 fw-bold border-0" data-id="${id}" data-action="compra">
+                            <i class="fas fa-shopping-bag me-1"></i> Convertir a Compra
+                        </button>`;
+                    }
+                    @else
+                        btns += `<span class="badge bg-info text-dark">Pendiente de conversion (Sin permiso)</span>`;
+                    @endcan
+                    
+                    conversionButtons.innerHTML = btns;
                 } else {
-                    conversionButtons.innerHTML = `
-                        <span class="badge bg-secondary">Cotización ${data.cotizacion.estado.replace('_', ' ')}</span>
-                    `;
+                    const estadoTextos = {
+                        'venta_realizada': 'Convertida a Venta',
+                        'compra_realizada': 'Convertida a Compra',
+                        'anulado': 'Anulada'
+                    };
+                    const estadoText = estadoTextos[data.cotizacion?.estado] || data.cotizacion?.estado || 'Procesada';
+                    
+                    let extraBtns = '';
+                    // Si el usuario quiere anularla incluso despues de realizada/anulada (solo con permisos de eliminacion/edicion supremos)
+                    @can('eliminar-cotizacion')
+                        if(data.cotizacion?.estado !== 'anulado') {
+                            extraBtns = `<button class="btn btn-danger btn-sm ms-2 change-status-modal" data-id="${id}" data-status="anulado">
+                                <i class="fas fa-times-circle me-1"></i> Anular
+                            </button>`;
+                        }
+                    @endcan
+                    
+                    conversionButtons.innerHTML = `<span class="badge bg-secondary fs-6 d-flex align-items-center">${estadoText}</span> ${extraBtns}`;
                 }
             } else {
                 throw new Error(data.message || 'Error al cargar');
@@ -1025,27 +1091,27 @@
         });
     }
 
+    // ===== LOGICA DE CONVERSION DIRECTA =====
     function confirmConversion(id, action) {
-        const title = action === 'venta' ? '¿Convertir en Venta?' : '¿Convertir en Compra?';
-        const text = action === 'venta'
-            ? "Se creará un registro de venta y se descontará stock."
-            : "Se creará un registro de compra y se aumentará stock.";
+        const isVenta = action === 'venta';
+        const title = isVenta ? '¿Convertir a Venta?' : '¿Convertir a Compra?';
+        const text = isVenta 
+            ? 'Se creará un registro de venta y se descontará el stock automáticamente.'
+            : 'Se creará un registro de compra y se incrementará el stock automáticamente.';
+        const confirmColor = isVenta ? '#198754' : '#0d6efd';
 
         Swal.fire({
             title: title,
             text: text,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonColor: action === 'venta' ? '#198754' : '#0d6efd',
+            confirmButtonColor: confirmColor,
+            cancelButtonColor: '#6c757d',
             confirmButtonText: 'Sí, convertir',
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
-                Swal.fire({
-                    title: 'Procesando...',
-                    allowOutsideClick: false,
-                    didOpen: () => { Swal.showLoading(); }
-                });
+                Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
                 fetch(`${cotizacionBaseUrl}/${id}/convertir-${action}`, {
                     method: 'POST',
@@ -1053,7 +1119,12 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({
+                        // Valores por defecto (ya que se elimino el modal)
+                        metodo_pago: 'efectivo',
+                        monto_pagado: 0
+                    })
                 })
                 .then(async res => {
                     const raw = await res.text();
@@ -1062,10 +1133,15 @@
                 })
                 .then(data => {
                     if (data.success) {
-                        Swal.fire('¡Éxito!', data.message, 'success').then(() => {
-                            fetchCotizaciones();
-                            viewModal.hide();
-                        });
+                        Swal.fire({ icon: 'success', title: '¡Éxito!', text: data.message, timer: 1500, showConfirmButton: false })
+                            .then(() => {
+                                // Redireccionar al index correspondiente
+                                if (isVenta) {
+                                    window.location.href = '{{ route("ventas.index") ?? "/admin/ventas" }}';
+                                } else {
+                                    window.location.href = '{{ route("compras.index") ?? "/admin/compras" }}';
+                                }
+                            });
                     } else {
                         Swal.fire('Error', data.message, 'error');
                     }

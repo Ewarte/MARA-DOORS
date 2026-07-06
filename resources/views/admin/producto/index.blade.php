@@ -9,6 +9,123 @@
 @push('css')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="{{ asset('css/style_Categoria.css') }}">
+    <style>
+        .search-container {
+            margin: 1rem 0 1.25rem;
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+
+        .filter-pill {
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #6b7280;
+            padding: 0.42rem 0.8rem;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.18s ease;
+            cursor: pointer;
+        }
+
+        .filter-pill:hover,
+        .filter-pill.active {
+            background: #1f2937;
+            color: #fff;
+            border-color: #1f2937;
+        }
+
+        .form-control-clean,
+        .form-select.form-control-clean {
+            border-radius: 10px;
+            min-height: 2.85rem;
+            border-color: #d1d5db;
+            box-shadow: none;
+        }
+
+        .form-control-clean:focus,
+        .form-select.form-control-clean:focus {
+            border-color: #6b7280;
+            box-shadow: 0 0 0 0.15rem rgba(107, 114, 128, 0.12);
+        }
+
+        .badge-success {
+            background: #10b981;
+            color: #fff;
+        }
+
+        .badge-danger {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .badge-warning {
+            background: #f59e0b;
+            color: #fff;
+        }
+
+        .badge-info {
+            background: #3b82f6;
+            color: #fff;
+        }
+
+        .pagination .page-item.active .page-link {
+            background: #1f2937;
+            border-color: #1f2937;
+            color: #fff;
+        }
+
+        .pagination .page-link {
+            color: #1f2937;
+        }
+
+        .pagination .page-link:hover {
+            background: #f3f4f6;
+        }
+
+        /* Estilos para los estados originales */
+        .bg-success {
+            background-color: #10b981 !important;
+        }
+
+        .bg-danger {
+            background-color: #ef4444 !important;
+        }
+
+        .text-white {
+            color: #fff !important;
+        }
+
+        .badge-pill {
+            padding: 0.25rem 0.75rem;
+            border-radius: 10rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-pill.badge-success {
+            background: #10b981;
+            color: #fff;
+        }
+
+        .badge-pill.badge-danger {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .badge-pill.badge-warning {
+            background: #f59e0b;
+            color: #fff;
+        }
+
+        .badge-pill.badge-info {
+            background: #3b82f6;
+            color: #fff;
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -42,53 +159,100 @@
 
             <div class="search-container">
                 <form action="{{ route('productos.index') }}" method="GET" id="searchForm">
-                    <div class="row g-3 align-items-center">
-                        <div class="col-md-4">
+                    <input type="hidden" name="estado" id="estado" value="{{ $estado ?? 'all' }}">
+                    <input type="hidden" name="stock_filter" id="stock_filter" value="{{ $stockFilter ?? 'all' }}">
+
+                    <div class="row g-3">
+                        <!-- Búsqueda -->
+                        <div class="col-lg-4">
+                            <label class="info-subtext mb-2 text-uppercase letter-spacing-05 small fw-bold">Búsqueda</label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0" style="padding: 0.4rem 0.75rem;">
+                                <span class="input-group-text bg-white border-end-0" style="padding: 0.8rem 0.95rem;">
                                     <i class="fas fa-search text-muted small"></i>
                                 </span>
                                 <input type="text" name="busqueda" class="form-control form-control-clean border-start-0 ps-0"
-                                    placeholder="Buscar producto..." value="{{ $busqueda ?? '' }}">
+                                    placeholder="Busca por código, nombre o descripción..." value="{{ $busqueda ?? '' }}" autocomplete="off">
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="d-flex align-items-center">
-                                <label for="per_page" class="me-2 text-muted small">Mostrar:</label>
-                                <select name="per_page" id="per_page" class="form-select form-select-sm w-auto" style="border-radius: 6px;">
-                                    @foreach([5, 10, 15, 20, 25] as $option)
-                                        <option value="{{ $option }}" {{ ($perPage ?? 10) == $option ? 'selected' : '' }}>
-                                            {{ $option }}
-                                        </option>
-                                    @endforeach
-                                </select>
+
+                        <!-- Categoría -->
+                        <div class="col-lg-2">
+                            <label for="categoria_id" class="info-subtext mb-2 text-uppercase letter-spacing-05 small fw-bold">Categoría</label>
+                            <select name="categoria_id" id="categoria_id" class="form-select form-select-lg form-control-clean">
+                                <option value="all" {{ ($categoriaId ?? 'all') === 'all' ? 'selected' : '' }}>Todas</option>
+                                @foreach($categorias as $categoria)
+                                    <option value="{{ $categoria->id }}" {{ (string)($categoriaId ?? 'all') === (string)$categoria->id ? 'selected' : '' }}>
+                                        {{ $categoria->nombre }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Ver por página -->
+                        <div class="col-lg-1">
+                            <label for="per_page" class="info-subtext mb-2 text-uppercase letter-spacing-05 small fw-bold">Ver</label>
+                            <select name="per_page" id="per_page" class="form-select form-select-lg form-control-clean">
+                                @foreach([5, 10, 15, 20, 25] as $option)
+                                    <option value="{{ $option }}" {{ ($perPage ?? 10) == $option ? 'selected' : '' }}>
+                                        {{ $option }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Acciones rápidas -->
+                        <div class="col-lg-2 d-flex align-items-end">
+                            <div class="w-100 d-flex flex-column gap-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="resetFilters">
+                                    <i class="fas fa-rotate-left me-1"></i> Limpiar filtros
+                                </button>
+                                <div class="text-muted small text-end">
+                                    Resultados: <strong id="resultsCount">{{ $productos->total() }}</strong>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-5 text-end">
-                            <a href="{{ route('productos.index') }}" class="btn btn-outline-secondary btn-sm" style="border-radius: 6px;">
-                                <i class="fas fa-undo me-1"></i> Mostrar Todo
-                            </a>
+                    </div>
+
+                    <!-- Filtros rápidos (Pills) -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <span class="small text-muted me-2 fw-semibold">Estado:</span>
+                                <button type="button" class="filter-pill {{ ($estado ?? 'all') === 'all' ? 'active' : '' }}" data-filter="estado" data-value="all">Todos</button>
+                                <button type="button" class="filter-pill {{ ($estado ?? 'all') === 'active' ? 'active' : '' }}" data-filter="estado" data-value="active">Activos</button>
+                                <button type="button" class="filter-pill {{ ($estado ?? 'all') === 'inactive' ? 'active' : '' }}" data-filter="estado" data-value="inactive">Inactivos</button>
+
+                                <span class="small text-muted mx-2 fw-semibold">|</span>
+                                <span class="small text-muted me-2 fw-semibold">Stock:</span>
+                                <button type="button" class="filter-pill stock-pill {{ ($stockFilter ?? 'all') === 'all' ? 'active' : '' }}" data-filter="stock" data-value="all">Todo el stock</button>
+                                <button type="button" class="filter-pill stock-pill {{ ($stockFilter ?? 'all') === 'low' ? 'active' : '' }}" data-filter="stock" data-value="low">
+                                    <i class="fas fa-exclamation-triangle me-1"></i> Bajo stock
+                                </button>
+                                <button type="button" class="filter-pill stock-pill {{ ($stockFilter ?? 'all') === 'normal' ? 'active' : '' }}" data-filter="stock" data-value="normal">Stock normal</button>
+                            </div>
                         </div>
                     </div>
                 </form>
             </div>
 
-            <!-- NUEVA SECCION: ACCIONES DE SELECCION -->
-            <div class="selection-actions-container" id="selectionActions" style="display: none;">
-                <div class="selected-counter">
-                    <span>Productos seleccionados:</span>
-                    <span class="selected-counter-badge" id="selectedCount">0</span>
-                </div>
-                <div class="action-buttons-group">
-                    <button type="button" class="btn-action-outline" id="deselectAll">
-                        <i class="fas fa-times"></i> Deseleccionar Todos
-                    </button>
-                    <button type="button" class="btn-action-secondary" id="exportExcel">
-                        <i class="fas fa-file-excel"></i> Exportar a Excel
-                    </button>
-                    <button type="button" class="btn-action-secondary" id="exportPdf" style="background: #e74c3c;">
-                        <i class="fas fa-file-pdf"></i> Exportar a PDF
-                    </button>
+            <!-- Acciones de selección -->
+            <div class="selection-actions-container" id="selectionActions" style="display: none; padding: 0.75rem 1.25rem; background: #f8fafc; border-bottom: 1px solid #e5e7eb;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <span class="fw-semibold small">Productos seleccionados:</span>
+                        <span class="badge bg-dark ms-1" id="selectedCount">0</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="deselectAll">
+                            <i class="fas fa-times"></i> Deseleccionar
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm" id="exportExcel">
+                            <i class="fas fa-file-excel"></i> Excel
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" id="exportPdf">
+                            <i class="fas fa-file-pdf"></i> PDF
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -97,41 +261,40 @@
                     <table id="datatablesSimple" class="custom-table">
                         <thead>
                             <tr>
-                                <th class="checkbox-header">
-                                    <div class="custom-checkbox select-all" id="selectAll">
-                                    </div>
+                                <th class="checkbox-header" style="width: 40px;">
+                                    <div class="custom-checkbox select-all" id="selectAll"></div>
                                 </th>
-                                <th>
+                                <th style="min-width: 200px;">
                                     <button class="sort-btn {{ $sort == 'nombre' ? 'active ' . $direction : '' }}"
                                             data-column="nombre">
                                         Producto <i class="fas fa-sort sort-icon"></i>
                                     </button>
                                 </th>
-                                <th>
+                                <th style="min-width: 120px;">
                                     <button class="sort-btn {{ $sort == 'precio_venta' ? 'active ' . $direction : '' }}"
                                             data-column="precio_venta">
                                         Precios <i class="fas fa-sort sort-icon"></i>
                                     </button>
                                 </th>
-                                <th class="text-center">
+                                <th class="text-center" style="width: 100px;">
                                     <button class="sort-btn {{ $sort == 'stock_total' ? 'active ' . $direction : '' }}"
                                             data-column="stock_total">
-                                        Stock Total <i class="fas fa-sort sort-icon"></i>
+                                        Stock <i class="fas fa-sort sort-icon"></i>
                                     </button>
                                 </th>
-                                <th>
+                                <th style="min-width: 120px;">
                                     <button class="sort-btn {{ $sort == 'categoria' ? 'active ' . $direction : '' }}"
                                             data-column="categoria">
-                                        Categoria <i class="fas fa-sort sort-icon"></i>
+                                        Categoría <i class="fas fa-sort sort-icon"></i>
                                     </button>
                                 </th>
-                                <th>
+                                <th style="width: 100px;">
                                     <button class="sort-btn {{ $sort == 'estado' ? 'active ' . $direction : '' }}"
                                             data-column="estado">
                                         Estado <i class="fas fa-sort sort-icon"></i>
                                     </button>
                                 </th>
-                                <th class="text-center">Acciones</th>
+                                <th class="text-center" style="width: 150px;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -161,7 +324,7 @@
                                         @php
                                             $totalStock = $item->inventarios->sum('stock');
                                         @endphp
-                                        <span class="badge-pill {{ $totalStock <= 10 ? 'badge-danger' : 'badge-success' }}">
+                                        <span class="badge {{ $totalStock <= 10 ? 'bg-danger' : 'bg-success' }}">
                                             {{ $totalStock }}
                                         </span>
                                     </td>
@@ -169,10 +332,10 @@
                                         <span class="badge bg-light text-dark border">{{ $item->categoria->nombre }}</span>
                                     </td>
                                     <td>
-                                        @if ($item->estado == 1)
-                                            <span class="badge-pill badge-success">Activo</span>
+                                        @if($item->estado == 1)
+                                            <span class="badge bg-success text-white">Activo</span>
                                         @else
-                                            <span class="badge-pill badge-danger">Inactivo</span>
+                                            <span class="badge bg-danger text-white">Inactivo</span>
                                         @endif
                                     </td>
                                     <td>
@@ -242,7 +405,7 @@
                                                     </div>
 
                                                     <div class="col-md-4">
-                                                        <label class="info-subtext mb-1">Categoria</label>
+                                                        <label class="info-subtext mb-1">Categoría</label>
                                                         <div><i class="fas fa-tag me-1 small"></i>{{ $item->categoria->nombre }}</div>
                                                     </div>
                                                     <div class="col-md-4">
@@ -257,7 +420,7 @@
 
                                                 <div class="mt-4">
                                                     <h6 class="fw-semibold border-bottom pb-2 small uppercase letter-spacing-05">
-                                                        <i class="fas fa-warehouse me-2 text-muted"></i>Stock por Almacen
+                                                        <i class="fas fa-warehouse me-2 text-muted"></i>Stock por Almacén
                                                     </h6>
                                                     <div class="row mt-2">
                                                         @forelse($item->inventarios as $inv)
@@ -284,12 +447,12 @@
                                     </div>
                                 </div>
 
-                                <!-- Modal de confirmacion -->
+                                <!-- Modal de confirmación -->
                                 <div class="modal fade" id="confirmModal-{{ $item->id }}" tabindex="-1" aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered">
                                         <div class="modal-content modal-content-clean">
                                             <div class="modal-header modal-header-clean">
-                                                <h5 class="modal-title fs-6">Confirmar accion</h5>
+                                                <h5 class="modal-title fs-6">Confirmar acción</h5>
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body p-4 text-center">
@@ -371,62 +534,65 @@
                         Mostrando {{ $productos->firstItem() }} - {{ $productos->lastItem() }} de {{ $productos->total() }} registros
                     </div>
                     <div>
-                        {{ $productos->appends(['busqueda' => $busqueda, 'per_page' => $perPage, 'sort' => $sort, 'direction' => $direction])->links() }}
+                        {{ $productos->appends(['busqueda' => $busqueda, 'per_page' => $perPage, 'sort' => $sort, 'direction' => $direction, 'estado' => $estado, 'categoria_id' => $categoriaId, 'stock' => $stock])->links() }}
                     </div>
                 </div>
             </div>
-        <!-- Modal de Exportacion Genérico -->
-        <div class="modal fade" id="exportModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content modal-content-clean">
-                    <div class="modal-header modal-header-clean">
-                        <h5 class="modal-title fs-6" id="exportModalTitle">
-                            <i class="fas fa-file-export me-2"></i> Exportar Productos
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body p-4">
-                        <input type="hidden" id="exportFormat" value="excel">
-                        <div class="alert alert-success border-0 bg-success bg-opacity-10 d-flex align-items-center mb-4" id="exportAlert" style="border-radius: 12px;">
-                            <i class="fas fa-info-circle me-3 fs-5 text-success" id="exportAlertIcon"></i>
-                            <div class="small fw-medium text-success">
-                                Se exportarán <strong id="exportCountDisplay">0</strong> productos seleccionados.
+            <div id="product-modals"></div>
+
+            <!-- Modal de Exportación Genérico -->
+            <div class="modal fade" id="exportModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content modal-content-clean">
+                        <div class="modal-header modal-header-clean">
+                            <h5 class="modal-title fs-6" id="exportModalTitle">
+                                <i class="fas fa-file-export me-2"></i> Exportar Productos
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <input type="hidden" id="exportFormat" value="excel">
+                            <div class="alert alert-success border-0 bg-success bg-opacity-10 d-flex align-items-center mb-4" id="exportAlert" style="border-radius: 12px;">
+                                <i class="fas fa-info-circle me-3 fs-5 text-success" id="exportAlertIcon"></i>
+                                <div class="small fw-medium text-success">
+                                    Se exportarán <strong id="exportCountDisplay">0</strong> productos seleccionados.
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="info-subtext mb-2 text-uppercase letter-spacing-05 small fw-bold">Opciones de Datos</label>
+
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="modalIncludePrices" checked>
+                                    <label class="form-check-label d-block" for="modalIncludePrices">
+                                        <span class="d-block fw-semibold small">Incluir precios</span>
+                                        <span class="extra-small text-muted">Precio de compra y venta unitario</span>
+                                    </label>
+                                </div>
+
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="modalIncludeStock" checked>
+                                    <label class="form-check-label d-block" for="modalIncludeStock">
+                                        <span class="d-block fw-semibold small">Incluir stock</span>
+                                        <span class="extra-small text-muted">Cantidades totales en almacenes</span>
+                                    </label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="modalIncludeAllDetails" checked>
+                                    <label class="form-check-label d-block" for="modalIncludeAllDetails">
+                                        <span class="d-block fw-semibold small">Incluir todos los detalles</span>
+                                        <span class="extra-small text-muted">Categorías, marcas e información técnica</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
-
-                        <div class="mb-3">
-                            <label class="info-subtext mb-2 text-uppercase letter-spacing-05 small fw-bold">Opciones de Datos</label>
-
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="modalIncludePrices" checked>
-                                <label class="form-check-label d-block" for="modalIncludePrices">
-                                    <span class="d-block fw-semibold small">Incluir precios</span>
-                                    <span class="extra-small text-muted">Precio de compra y venta unitario</span>
-                                </label>
-                            </div>
-
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="modalIncludeStock" checked>
-                                <label class="form-check-label d-block" for="modalIncludeStock">
-                                    <span class="d-block fw-semibold small">Incluir stock</span>
-                                    <span class="extra-small text-muted">Cantidades totales en almacenes</span>
-                                </label>
-                            </div>
-
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="modalIncludeAllDetails" checked>
-                                <label class="form-check-label d-block" for="modalIncludeAllDetails">
-                                    <span class="d-block fw-semibold small">Incluir todos los detalles</span>
-                                    <span class="extra-small text-muted">Categorías, marcas e información técnica</span>
-                                </label>
-                            </div>
+                        <div class="modal-footer border-0 p-4 pt-0">
+                            <button type="button" class="btn btn-outline-danger btn-sm px-4" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-outline-primary btn-sm px-4" id="confirmExportBtn">
+                                <i class="fas fa-download me-1"></i> Generar Archivo
+                            </button>
                         </div>
-                    </div>
-                    <div class="modal-footer border-0 p-4 pt-0">
-                        <button type="button" class="btn btn-outline-danger btn-sm px-4" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-outline-primary btn-sm px-4" id="confirmExportBtn">
-                            <i class="fas fa-download me-1"></i> Generar Archivo
-                        </button>
                     </div>
                 </div>
             </div>
@@ -438,9 +604,20 @@
 <script>
     let debounceTimer;
     const tableContainer = document.getElementById('table-container');
+    const productModals = document.getElementById('product-modals');
     let selectedProducts = new Set();
 
-    // NUEVO: Sistema de selección
+    function moveProductModals() {
+        if (!tableContainer || !productModals) return;
+
+        const modals = tableContainer.querySelectorAll('.modal.fade[id^="verModal-"], .modal.fade[id^="confirmModal-"]');
+        productModals.innerHTML = '';
+
+        modals.forEach(modal => {
+            productModals.appendChild(modal);
+        });
+    }
+
     function initializeSelectionSystem() {
         const selectionActions = document.getElementById('selectionActions');
         const selectAllCheckbox = document.getElementById('selectAll');
@@ -450,30 +627,34 @@
         const exportExcelBtn = document.getElementById('exportExcel');
         const exportPdfBtn = document.getElementById('exportPdf');
 
-        // Seleccionar/Deseleccionar producto individual
         productCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('click', function() {
-                const productId = this.dataset.productId;
-                const row = this.closest('tr');
-
-                if (this.classList.contains('checked')) {
-                    // Deseleccionar
-                    this.classList.remove('checked');
-                    row.classList.remove('selected');
-                    selectedProducts.delete(productId);
-                } else {
-                    // Seleccionar
-                    this.classList.add('checked');
-                    row.classList.add('selected');
-                    selectedProducts.add(productId);
-                }
-
-                updateSelectionUI();
-            });
+            checkbox.removeEventListener('click', handleCheckboxClick);
+            checkbox.addEventListener('click', handleCheckboxClick);
         });
 
-        // Seleccionar todos
-        selectAllCheckbox.addEventListener('click', function() {
+        function handleCheckboxClick() {
+            const productId = this.dataset.productId;
+            const row = this.closest('tr');
+
+            if (this.classList.contains('checked')) {
+                this.classList.remove('checked');
+                row.classList.remove('selected');
+                selectedProducts.delete(productId);
+            } else {
+                this.classList.add('checked');
+                row.classList.add('selected');
+                selectedProducts.add(productId);
+            }
+
+            updateSelectionUI();
+        }
+
+        if (selectAllCheckbox) {
+            selectAllCheckbox.removeEventListener('click', handleSelectAll);
+            selectAllCheckbox.addEventListener('click', handleSelectAll);
+        }
+
+        function handleSelectAll() {
             const isSelectAll = !this.classList.contains('checked');
 
             productCheckboxes.forEach(checkbox => {
@@ -491,28 +672,32 @@
                 }
             });
 
-            selectAllCheckbox.classList.toggle('checked');
+            this.classList.toggle('checked');
             updateSelectionUI();
-        });
-
-        // Deseleccionar todos
-        deselectAllBtn.addEventListener('click', function() {
-            selectedProducts.clear();
-            productCheckboxes.forEach(checkbox => {
-                checkbox.classList.remove('checked');
-                const row = checkbox.closest('tr');
-                row.classList.remove('selected');
-            });
-            selectAllCheckbox.classList.remove('checked');
-            updateSelectionUI();
-        });
-
-        // Eventos de Exportacion
-        if (exportExcelBtn) {
-            exportExcelBtn.addEventListener('click', () => openExportModal('excel'));
         }
-        if (exportPdfBtn) {
+
+        if (deselectAllBtn && !deselectAllBtn.dataset.bound) {
+            deselectAllBtn.addEventListener('click', function() {
+                selectedProducts.clear();
+                productCheckboxes.forEach(checkbox => {
+                    checkbox.classList.remove('checked');
+                    const row = checkbox.closest('tr');
+                    if (row) row.classList.remove('selected');
+                });
+                if (selectAllCheckbox) selectAllCheckbox.classList.remove('checked');
+                updateSelectionUI();
+            });
+            deselectAllBtn.dataset.bound = '1';
+        }
+
+        if (exportExcelBtn && !exportExcelBtn.dataset.bound) {
+            exportExcelBtn.addEventListener('click', () => openExportModal('excel'));
+            exportExcelBtn.dataset.bound = '1';
+        }
+
+        if (exportPdfBtn && !exportPdfBtn.dataset.bound) {
             exportPdfBtn.addEventListener('click', () => openExportModal('pdf'));
+            exportPdfBtn.dataset.bound = '1';
         }
 
         function openExportModal(format) {
@@ -543,24 +728,63 @@
 
         function updateSelectionUI() {
             const count = selectedProducts.size;
-            selectedCountElement.textContent = count;
+            if (selectedCountElement) selectedCountElement.textContent = count;
 
-            if (count > 0) {
-                selectionActions.style.display = 'flex';
-                const totalCheckboxes = productCheckboxes.length;
-                if (count === totalCheckboxes) {
-                    selectAllCheckbox.classList.add('checked');
+            if (selectionActions) {
+                if (count > 0) {
+                    selectionActions.style.display = 'block';
+                    const totalCheckboxes = productCheckboxes.length;
+                    if (selectAllCheckbox) {
+                        if (count === totalCheckboxes) {
+                            selectAllCheckbox.classList.add('checked');
+                        } else {
+                            selectAllCheckbox.classList.remove('checked');
+                        }
+                    }
                 } else {
-                    selectAllCheckbox.classList.remove('checked');
+                    selectionActions.style.display = 'none';
+                    if (selectAllCheckbox) selectAllCheckbox.classList.remove('checked');
                 }
-            } else {
-                selectionActions.style.display = 'none';
-                selectAllCheckbox.classList.remove('checked');
             }
         }
+
+        updateSelectionUI();
     }
 
-    // Manejar confirmacion de exportacion
+    function buildQueryParams() {
+        const searchInput = document.querySelector('input[name="busqueda"]');
+        const perPageSelect = document.getElementById('per_page');
+        const categoriaSelect = document.getElementById('categoria_id');
+        const estadoInput = document.getElementById('estado');
+        const stockFilterInput = document.getElementById('stock');
+
+        const params = new URLSearchParams();
+        if (searchInput && searchInput.value.trim()) params.set('busqueda', searchInput.value.trim());
+        if (perPageSelect) params.set('per_page', perPageSelect.value);
+        if (categoriaSelect) params.set('categoria_id', categoriaSelect.value);
+        if (estadoInput) params.set('estado', estadoInput.value);
+        if (stockFilterInput) params.set('stock', stockFilterInput.value);
+
+        const currentUrl = new URL(window.location.href);
+        if (currentUrl.searchParams.get('sort')) params.set('sort', currentUrl.searchParams.get('sort'));
+        if (currentUrl.searchParams.get('direction')) params.set('direction', currentUrl.searchParams.get('direction'));
+
+        return params;
+    }
+
+    function syncFilterPills() {
+        const estadoInput = document.getElementById('estado');
+        const stockFilterInput = document.getElementById('stock');
+
+        document.querySelectorAll('.filter-pill[data-filter="estado"]').forEach(btn => {
+            btn.classList.toggle('active', estadoInput && estadoInput.value === btn.dataset.value);
+        });
+
+        document.querySelectorAll('.filter-pill[data-filter="stock"]').forEach(btn => {
+            btn.classList.toggle('active', stockFilterInput && stockFilterInput.value === btn.dataset.value);
+        });
+    }
+
     document.addEventListener('click', function(e) {
         if (e.target && e.target.id === 'confirmExportBtn') {
             const format = document.getElementById('exportFormat').value;
@@ -569,12 +793,10 @@
             const includeStock = document.getElementById('modalIncludeStock').checked;
             const includeAllDetails = document.getElementById('modalIncludeAllDetails').checked;
 
-            // Cerrar modal
             const modalElement = document.getElementById('exportModal');
             const modalInstance = bootstrap.Modal.getInstance(modalElement);
-            modalInstance.hide();
+            if (modalInstance) modalInstance.hide();
 
-            // Mostrar loading
             Swal.fire({
                 title: 'Generando archivo...',
                 text: 'Por favor espere un momento.',
@@ -582,7 +804,6 @@
                 didOpen: () => { Swal.showLoading(); }
             });
 
-            // Crear y enviar formulario
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = format === 'excel' ? '{{ route("productos.export.excel") }}' : '{{ route("productos.export.pdf") }}';
@@ -606,20 +827,21 @@
                 const input = document.createElement('input');
                 input.type = 'hidden';
                 input.name = key;
-                input.value = options[key];
+                input.value = options[key] ? '1' : '0';
                 form.appendChild(input);
             });
 
             document.body.appendChild(form);
             form.submit();
 
-            // Limpiar seleccion
             setTimeout(() => {
-                document.getElementById('deselectAll').click();
+                if (document.getElementById('deselectAll')) {
+                    document.getElementById('deselectAll').click();
+                }
                 Swal.fire({
                     icon: 'success',
-                    title: 'Exportacion iniciada',
-                    text: 'El archivo se descargará automaticamente.',
+                    title: 'Exportación iniciada',
+                    text: 'El archivo se descargará automáticamente.',
                     timer: 2000,
                     showConfirmButton: false
                 });
@@ -627,14 +849,12 @@
         }
     });
 
-
     function initializeEvents() {
         const searchInput = document.querySelector('input[name="busqueda"]');
         const perPageSelect = document.getElementById('per_page');
         const sortButtons = document.querySelectorAll('.sort-btn');
 
-        // Búsqueda
-        if (searchInput) {
+        if (searchInput && !searchInput.dataset.bound) {
             searchInput.focus();
             const len = searchInput.value.length;
             searchInput.setSelectionRange(len, len);
@@ -643,15 +863,38 @@
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => fetchProducts(), 300);
             });
+            searchInput.dataset.bound = '1';
         }
 
-        // Items por página
-        if (perPageSelect) {
+        if (perPageSelect && !perPageSelect.dataset.bound) {
             perPageSelect.addEventListener('change', () => fetchProducts());
+            perPageSelect.dataset.bound = '1';
         }
 
-        // Ordenamiento
+        const categoriaSelect = document.getElementById('categoria_id');
+        if (categoriaSelect && !categoriaSelect.dataset.bound) {
+            categoriaSelect.addEventListener('change', () => fetchProducts());
+            categoriaSelect.dataset.bound = '1';
+        }
+
+        const resetFiltersBtn = document.getElementById('resetFilters');
+        if (resetFiltersBtn && !resetFiltersBtn.dataset.bound) {
+            resetFiltersBtn.addEventListener('click', function() {
+                if (searchInput) searchInput.value = '';
+                if (perPageSelect) perPageSelect.value = '10';
+                if (categoriaSelect) categoriaSelect.value = 'all';
+                const estadoInput = document.getElementById('estado');
+                if (estadoInput) estadoInput.value = 'all';
+                const stockFilterInput = document.getElementById('stock');
+                if (stockFilterInput) stockFilterInput.value = 'all';
+                syncFilterPills();
+                fetchProducts();
+            });
+            resetFiltersBtn.dataset.bound = '1';
+        }
+
         sortButtons.forEach(btn => {
+            if (btn.dataset.bound) return;
             btn.addEventListener('click', function() {
                 const column = this.dataset.column;
                 const currentUrl = new URL(window.location.href);
@@ -661,72 +904,123 @@
                     direction = currentUrl.searchParams.get('direction') === 'asc' ? 'desc' : 'asc';
                 }
 
-                const params = new URLSearchParams(window.location.search);
+                const params = buildQueryParams();
                 params.set('sort', column);
                 params.set('direction', direction);
 
                 fetchProducts(`{{ route('productos.index') }}?${params.toString()}`);
             });
+            btn.dataset.bound = '1';
+        });
+
+        document.querySelectorAll('.filter-pill').forEach(pill => {
+            if (pill.dataset.bound) return;
+            pill.addEventListener('click', function() {
+                const filter = this.dataset.filter;
+                const value = this.dataset.value;
+                const estadoInput = document.getElementById('estado');
+                const stockFilterInput = document.getElementById('stock');
+
+                if (filter === 'estado' && estadoInput) {
+                    estadoInput.value = value;
+                }
+
+                if (filter === 'stock' && stockFilterInput) {
+                    stockFilterInput.value = value;
+                }
+
+                syncFilterPills();
+                fetchProducts();
+            });
+            pill.dataset.bound = '1';
         });
     }
 
     function fetchProducts(url = null) {
-        const searchInput = document.querySelector('input[name="busqueda"]');
-        const perPageSelect = document.getElementById('per_page');
-
         let fetchUrl = url;
         if (!fetchUrl) {
-            const params = new URLSearchParams(window.location.search);
-            if (searchInput) params.set('busqueda', searchInput.value);
-            if (perPageSelect) params.set('per_page', perPageSelect.value);
+            const params = buildQueryParams();
             fetchUrl = `{{ route('productos.index') }}?${params.toString()}`;
         }
 
-        tableContainer.style.opacity = '0.6';
+        if (tableContainer) {
+            tableContainer.style.opacity = '0.6';
+        }
 
-        fetch(fetchUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(response => response.text())
-            .then(html => {
-                const parser = new DOMParser();
-                const newDoc = parser.parseFromString(html, 'text/html');
-                const newContent = newDoc.getElementById('table-container').innerHTML;
+        fetch(fetchUrl, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error en la respuesta del servidor');
+            }
+            return response.text();
+        })
+        .then(html => {
+            const parser = new DOMParser();
+            const newDoc = parser.parseFromString(html, 'text/html');
+            const newContainer = newDoc.getElementById('table-container');
 
-                tableContainer.innerHTML = newContent;
+            if (newContainer && tableContainer) {
+                tableContainer.innerHTML = newContainer.innerHTML;
+                moveProductModals();
+            }
+
+            const resultsCount = newDoc.getElementById('resultsCount');
+            const resultsCountElement = document.getElementById('resultsCount');
+            if (resultsCountElement && resultsCount) {
+                resultsCountElement.textContent = resultsCount.textContent;
+            }
+
+            if (tableContainer) {
                 tableContainer.style.opacity = '1';
+            }
 
-                // Limpiar seleccion al actualizar
-                selectedProducts.clear();
-                document.getElementById('selectionActions').style.display = 'none';
+            selectedProducts.clear();
+            const selectionActions = document.getElementById('selectionActions');
+            if (selectionActions) selectionActions.style.display = 'none';
 
-                // Actualizar URL sin recargar
-                window.history.pushState({}, '', fetchUrl);
-
-                initializeEvents();
-                initializeSelectionSystem();
-            })
-            .catch(error => {
-                console.error('Error:', error);
+            window.history.pushState({}, '', fetchUrl);
+            syncFilterPills();
+            initializeEvents();
+            initializeSelectionSystem();
+        })
+        .catch(error => {
+            console.error('Error al cargar productos:', error);
+            if (tableContainer) {
                 tableContainer.style.opacity = '1';
+            }
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudieron cargar los productos. Intente nuevamente.',
+                timer: 3000,
+                showConfirmButton: false
             });
+        });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
+        moveProductModals();
+        syncFilterPills();
         initializeEvents();
         initializeSelectionSystem();
     });
 
-    // Manejar clic en fila (seleccionar producto)
     document.addEventListener('click', function(e) {
         if (e.target.closest('tr[data-product-id]') && !e.target.closest('.btn-action-group') && !e.target.closest('.custom-checkbox')) {
             const row = e.target.closest('tr[data-product-id]');
-            const productId = row.dataset.productId;
-            const viewBtn = row.querySelector(`[data-bs-target="#verModal-${productId}"]`);
-
-            if (viewBtn) {
-                viewBtn.click();
+            if (row) {
+                const productId = row.dataset.productId;
+                const viewBtn = row.querySelector(`[data-bs-target="#verModal-${productId}"]`);
+                if (viewBtn) {
+                    viewBtn.click();
+                }
             }
         }
     });
 </script>
 @endpush
-

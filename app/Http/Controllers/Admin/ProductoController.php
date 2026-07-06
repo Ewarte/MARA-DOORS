@@ -43,6 +43,9 @@ class ProductoController extends Controller
         $perPage  = $request->get('per_page', 10);
         $sort      = $request->get('sort', 'nombre');
         $direction = $request->get('direction', 'asc');
+        $estado = $request->get('estado', 'all');
+        $categoriaId = $request->get('categoria_id', 'all');
+        $stock = $request->get('stock', 'all');
 
         // Validar per_page y direction
         if (!in_array($perPage, [5, 10, 15, 20, 25])) $perPage = 10;
@@ -62,6 +65,22 @@ class ProductoController extends Controller
                   ->orWhere('nombre', 'like', "%{$busqueda}%")
                   ->orWhere('descripcion', 'like', "%{$busqueda}%");
             });
+        }
+
+        if ($estado === 'active') {
+            $query->where('estado', 1);
+        } elseif ($estado === 'inactive') {
+            $query->where('estado', 0);
+        }
+
+        if ($categoriaId !== 'all' && is_numeric($categoriaId)) {
+            $query->where('categoria_id', $categoriaId);
+        }
+
+        if ($stock === 'low') {
+            $query->whereRaw('(SELECT COALESCE(SUM(stock), 0) FROM inventario_almacenes ia WHERE ia.producto_id = productos.id) <= 10');
+        } elseif ($stock === 'normal') {
+            $query->whereRaw('(SELECT COALESCE(SUM(stock), 0) FROM inventario_almacenes ia WHERE ia.producto_id = productos.id) > 10');
         }
 
         // Ordenamiento
@@ -99,17 +118,20 @@ class ProductoController extends Controller
             ->count();
 
         $almacenes = Almacen::where('estado', true)->get();
+        $categorias = Categoria::orderBy('nombre')->get();
 
         if ($request->ajax()) {
             return view('admin.producto.index', compact(
-                'productos', 'busqueda', 'perPage', 'almacenes', 
-                'sort', 'direction', 'totalStockGlobal', 'productosActivos', 'bajoStockCount'
+                'productos', 'busqueda', 'perPage', 'almacenes', 'categorias',
+                'sort', 'direction', 'estado', 'categoriaId', 'stock',
+                'totalStockGlobal', 'productosActivos', 'bajoStockCount'
             ));
         }
 
         return view('admin.producto.index', compact(
-            'productos', 'busqueda', 'perPage', 'almacenes', 
-            'sort', 'direction', 'totalStockGlobal', 'productosActivos', 'bajoStockCount'
+            'productos', 'busqueda', 'perPage', 'almacenes', 'categorias',
+            'sort', 'direction', 'estado', 'categoriaId', 'stock',
+            'totalStockGlobal', 'productosActivos', 'bajoStockCount'
         ));
     }
  

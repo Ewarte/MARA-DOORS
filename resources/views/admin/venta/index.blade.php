@@ -169,6 +169,12 @@
                                     </button>
                                 </th>
                                 <th>
+                                    <button class="sort-btn {{ $sort == 'user_id' ? 'active ' . $direction : '' }}"
+                                            data-column="user_id">
+                                        Usuario <i class="fas fa-sort sort-icon"></i>
+                                    </button>
+                                </th>
+                                <th>
                                     <button class="sort-btn {{ $sort == 'fecha_hora' ? 'active ' . $direction : '' }}"
                                             data-column="fecha_hora">
                                         Fecha/Hora <i class="fas fa-sort sort-icon"></i>
@@ -222,6 +228,12 @@
                                             <div class="fw-semibold text-danger">Cliente no disponible</div>
                                             <div class="info-subtext">---</div>
                                         @endif
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold text-secondary">
+                                            <i class="fas fa-user-circle me-1 small"></i>
+                                            {{ $venta->user ? $venta->user->name : 'N/A' }}
+                                        </div>
                                     </td>
                                     <td>
                                         <div>
@@ -289,6 +301,7 @@
                                     </td>
                                     <td>
                                         <div class="btn-action-group">
+
                                             @can('mostrar-venta')
                                                 <button type="button" class="btn-icon-soft view-venta"
                                                         data-venta-id="{{ $venta->id }}"
@@ -348,7 +361,7 @@
                         <!-- TFOOT con resumen (como en Productos) -->
                         <tfoot>
                             <tr class="table-totals">
-                                <td colspan="4" class="text-end">
+                                <td colspan="5" class="text-end">
                                     <span class="totals-label">RESUMEN GENERAL</span>
                                 </td>
                                 <td class="text-center">
