@@ -117,11 +117,18 @@ class CotizacionController extends Controller
         $cotizacion->load(['cliente.persona', 'proveedor.persona', 'user', 'almacen', 'detalles.producto']);
         
         if (request()->ajax() || request()->wantsJson()) {
+            $telefono = optional(optional($cotizacion->cliente)->persona)->telefono
+                ?? optional(optional($cotizacion->proveedor)->persona)->telefono;
+
             return response()->json([
                 'success' => true,
                 'html' => view('admin.cotizacion.show-modal', compact('cotizacion'))->render(),
                 'cotizacion' => $cotizacion,
-                'pdf_url' => route('cotizaciones.pdf', ['cotizacion' => $cotizacion->id])
+                'telefono' => $telefono,
+                'pdf_url' => route('cotizaciones.pdf', ['cotizacion' => $cotizacion->id]),
+                'edit_url' => auth()->user()->can('editar-cotizacion') && $cotizacion->estado === 'pendiente'
+                    ? route('cotizaciones.edit', $cotizacion->id)
+                    : null,
             ]);
         }
 

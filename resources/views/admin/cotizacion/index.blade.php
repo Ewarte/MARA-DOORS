@@ -500,12 +500,10 @@
 
     <!-- Modal para ver cotizacion -->
     <div class="modal fade" id="viewCotizacionModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-dialog modal-dialog-scrollable modal-lg modal-dialog-centered">
             <div class="modal-content modal-content-clean">
                 <div class="modal-header modal-header-clean">
-                    <h5 class="modal-title fs-6 fw-bold">
-                        <i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Detalles de la Cotizacion
-                    </h5>
+                    <h5 class="modal-title fs-6">Detalles de la Cotización</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4" id="modalCotizacionContent">
@@ -513,16 +511,35 @@
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Cargando...</span>
                         </div>
-                        <p class="mt-2 text-muted small">Cargando informacion...</p>
+                        <p class="mt-2 text-muted small">Cargando detalles de la cotización...</p>
                     </div>
                 </div>
-                <div class="modal-footer border-0 d-flex justify-content-between align-items-center" id="modalFooter">
-                    <div id="conversionButtons" class="d-flex gap-2 flex-wrap"></div>
-                    <div class="d-flex gap-2">
-                        <button type="button" id="printButton" class="btn btn-outline-dark btn-sm px-3" title="Imprimir cotizacion">
+                <div class="modal-footer border-0 d-flex flex-wrap gap-2 justify-content-between" id="modalFooter">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <a href="#" id="pdfButton" class="btn btn-outline-danger btn-sm px-4" target="_blank">
+                            <i class="fas fa-file-pdf me-1"></i> Descargar PDF
+                        </a>
+
+                        <input type="text" id="whatsappPhoneInput" class="form-control form-control-sm" style="width: 220px;"
+                            placeholder="WhatsApp (ej: 5917xxxxxxx)">
+
+                        <button id="whatsappButton" type="button" class="btn btn-success btn-sm px-4" title="Enviar link por WhatsApp">
+                            <i class="fab fa-whatsapp me-1"></i> WhatsApp
+                        </button>
+
+                        <div id="conversionButtons" class="d-flex gap-2 flex-wrap"></div>
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <button type="button" id="printButton" class="btn btn-outline-primary btn-sm px-4" title="Imprimir cotización">
                             <i class="fas fa-print me-1"></i> Imprimir
                         </button>
-                        <button type="button" class="btn btn-light btn-sm px-3" data-bs-dismiss="modal">Cerrar</button>
+                        @can('editar-cotizacion')
+                        <a href="#" id="editButton" class="btn btn-outline-warning btn-sm px-4 d-none">
+                            <i class="fas fa-pen me-1"></i> Editar
+                        </a>
+                        @endcan
+                        <button type="button" class="btn btn-light btn-sm px-4" data-bs-dismiss="modal">Cerrar</button>
                     </div>
                 </div>
             </div>
@@ -600,6 +617,21 @@
     const tableContainer = document.getElementById('table-container');
     let selectedCotizaciones = new Set();
     let debounceTimer;
+    let currentPdfUrl = null;
+    let currentFacturaUrl = null;
+
+    function normalizeWhatsappPhone(raw) {
+        if (!raw) return '';
+        let digits = String(raw).replace(/\D/g, '');
+        if (!digits) return '';
+        if (digits.length <= 8) digits = `591${digits}`;
+        return digits;
+    }
+
+    function openWhatsappWithText(phoneDigits, text) {
+        const url = `https://wa.me/${phoneDigits}?text=${encodeURIComponent(text)}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
 
     // Sistema de selección (Idéntico al de Ventas)
     function initializeSelectionSystem() {
@@ -943,24 +975,50 @@
     const conversionButtons = document.getElementById('conversionButtons');
     const printButton = document.getElementById('printButton');
     const printFrame = document.getElementById('printFrame');
-    let currentPdfUrl = null;
 
-    // Botón Imprimir: carga el PDF en un iframe oculto y abre el diálogo de impresión del navegador
     printButton.addEventListener('click', function() {
         if (!currentPdfUrl) return;
-        printFrame.src = currentPdfUrl;
+        printFrame.src = `${currentPdfUrl}?print=1`;
         printFrame.onload = function() {
             try {
                 printFrame.contentWindow.focus();
                 printFrame.contentWindow.print();
-            } catch(e) {
-                // Si no se puede imprimir por CORS, abrir en nueva pestaña
+            } catch (e) {
                 window.open(currentPdfUrl, '_blank');
             }
         };
     });
 
     document.body.addEventListener('click', function(e) {
+        if (e.target.closest('#whatsappButton')) {
+            e.preventDefault();
+            const phoneInput = document.getElementById('whatsappPhoneInput');
+            const pdfBtn = document.getElementById('pdfButton');
+            const phoneDigits = normalizeWhatsappPhone(phoneInput ? phoneInput.value : '');
+            const shareUrl = currentFacturaUrl || (pdfBtn ? pdfBtn.href : '');
+
+            if (!phoneDigits) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Número requerido',
+                    text: 'Escribe un número de WhatsApp (ej: 5917xxxxxxx).'
+                });
+                return;
+            }
+
+            if (!shareUrl || shareUrl === '#') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Sin link',
+                    text: 'No se pudo obtener el link de la cotización.'
+                });
+                return;
+            }
+
+            openWhatsappWithText(phoneDigits, shareUrl);
+            return;
+        }
+
         // Ver detalles
         if (e.target.classList.contains('view-cotizacion') || e.target.closest('.view-cotizacion')) {
             const button = e.target.classList.contains('view-cotizacion') ? e.target : e.target.closest('.view-cotizacion');
@@ -996,11 +1054,25 @@
         modalContent.innerHTML = `
             <div class="text-center py-5">
                 <div class="spinner-border text-primary" role="status"></div>
-                <p class="mt-2 text-muted small">Cargando información...</p>
+                <p class="mt-2 text-muted small">Cargando detalles de la cotización...</p>
             </div>
         `;
         conversionButtons.innerHTML = '';
         currentPdfUrl = null;
+        currentFacturaUrl = null;
+
+        const pdfButton = document.getElementById('pdfButton');
+        if (pdfButton) pdfButton.href = '#';
+
+        const editButton = document.getElementById('editButton');
+        if (editButton) {
+            editButton.href = '#';
+            editButton.classList.add('d-none');
+        }
+
+        const phoneInput = document.getElementById('whatsappPhoneInput');
+        if (phoneInput) phoneInput.value = '';
+
         viewModal.show();
 
         fetch(`${cotizacionBaseUrl}/${id}`, {
@@ -1024,22 +1096,35 @@
             if (data.success) {
                 modalContent.innerHTML = data.html;
                 currentPdfUrl = data.pdf_url || null;
+                currentFacturaUrl = data.pdf_url || null;
 
-                // Botones contextuales segun estado y tipo
+                if (pdfButton && currentPdfUrl) {
+                    pdfButton.href = currentPdfUrl;
+                }
+
+                if (phoneInput) phoneInput.value = data.telefono || '';
+
+                if (editButton) {
+                    if (data.edit_url) {
+                        editButton.href = data.edit_url;
+                        editButton.classList.remove('d-none');
+                    } else {
+                        editButton.href = '#';
+                        editButton.classList.add('d-none');
+                    }
+                }
+
+                // Botones contextuales según estado y tipo
                 if (data.cotizacion && data.cotizacion.estado === 'pendiente') {
                     const cot = data.cotizacion;
                     const tieneCliente   = cot.cliente_id;
                     const tieneProveedor = cot.proveedor_id;
-                    
+
                     let btns = '';
-                    
+
                     @can('editar-cotizacion')
-                    btns += `<a href="${cotizacionBaseUrl}/${id}/edit" class="btn btn-warning btn-sm text-dark fw-bold border-0">
-                        <i class="fas fa-pen me-1"></i> Editar
-                    </a>`;
-                    
                     if (tieneCliente || !tieneProveedor) {
-                        btns += `<button class="btn btn-success btn-sm btn-convertir ms-2 fw-bold border-0" data-id="${id}" data-action="venta">
+                        btns += `<button class="btn btn-success btn-sm btn-convertir fw-bold border-0" data-id="${id}" data-action="venta">
                             <i class="fas fa-shopping-cart me-1"></i> Convertir a Venta
                         </button>`;
                     }
@@ -1048,10 +1133,8 @@
                             <i class="fas fa-shopping-bag me-1"></i> Convertir a Compra
                         </button>`;
                     }
-                    @else
-                        btns += `<span class="badge bg-info text-dark">Pendiente de conversion (Sin permiso)</span>`;
                     @endcan
-                    
+
                     conversionButtons.innerHTML = btns;
                 } else {
                     const estadoTextos = {

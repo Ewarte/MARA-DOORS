@@ -316,6 +316,9 @@ class CompraController extends Controller
                 'telefono' => $telefono,
                 'pdf_url' => $pdfUrl,
                 'factura_url' => $facturaUrl,
+                'edit_url' => auth()->user()->can('editar-compra')
+                    ? route('compras.edit', $compra->id)
+                    : null,
                 'html' => view('admin.compra.show-modal', compact('compra'))->render()
             ]);
         }
@@ -576,4 +579,3 @@ class CompraController extends Controller
         }
     }
 }
-

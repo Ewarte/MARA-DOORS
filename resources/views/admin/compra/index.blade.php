@@ -391,6 +391,11 @@
                                 <button id="printPdfButton" class="btn btn-outline-primary btn-sm px-4">
                                     <i class="fas fa-print me-1"></i> Imprimir
                                 </button>
+                                @can('editar-compra')
+                                <a href="#" id="editButton" class="btn btn-outline-warning btn-sm px-4 d-none">
+                                    <i class="fas fa-pen me-1"></i> Editar
+                                </a>
+                                @endcan
                                 <button type="button" class="btn btn-light btn-sm px-4" data-bs-dismiss="modal">Cerrar</button>
                             </div>
                         </div>
@@ -886,6 +891,17 @@
 
                 const phoneInput = document.getElementById('whatsappPhoneInput');
                 if (phoneInput) phoneInput.value = data.telefono || '';
+
+                const editButton = document.getElementById('editButton');
+                if (editButton) {
+                    if (data.edit_url) {
+                        editButton.href = data.edit_url;
+                        editButton.classList.remove('d-none');
+                    } else {
+                        editButton.href = '#';
+                        editButton.classList.add('d-none');
+                    }
+                }
             } else {
                 throw new Error(data.message || 'Error en los datos recibidos');
             }

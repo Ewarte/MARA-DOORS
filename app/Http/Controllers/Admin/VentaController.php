@@ -369,6 +369,9 @@ class VentaController extends Controller
                 'telefono' => $telefono,
                 'pdf_url' => $pdfUrl,
                 'factura_url' => $facturaUrl,
+                'edit_url' => auth()->user()->can('editar-venta')
+                    ? route('ventas.edit', $venta->id)
+                    : null,
                 'html' => view('admin.venta.show-modal', compact('venta'))->render()
             ]);
         }

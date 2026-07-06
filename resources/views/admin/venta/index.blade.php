@@ -324,10 +324,6 @@
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             @endcan
-
-                                            <a href="{{ route('ventas.pdf', $venta->id) }}" class="btn-icon-soft" target="_blank" title="Imprimir Comprobante">
-                                                <i class="fas fa-print"></i>
-                                            </a>
                                         </div>
                                     </td>
                                 </tr>
@@ -430,6 +426,11 @@
                                 <button id="printButton" class="btn btn-outline-primary btn-sm px-4">
                                     <i class="fas fa-print me-1"></i> Imprimir
                                 </button>
+                                @can('editar-venta')
+                                <a href="#" id="editButton" class="btn btn-outline-warning btn-sm px-4 d-none">
+                                    <i class="fas fa-pen me-1"></i> Editar
+                                </a>
+                                @endcan
                                 <button type="button" class="btn btn-light btn-sm px-4" data-bs-dismiss="modal">Cerrar</button>
                             </div>
                         </div>
@@ -913,6 +914,17 @@
                 const phoneInput = document.getElementById('whatsappPhoneInput');
                 const telefono = data.telefono || (data.venta && data.venta.cliente && data.venta.cliente.persona ? data.venta.cliente.persona.telefono : '');
                 if (phoneInput) phoneInput.value = telefono || '';
+
+                const editButton = document.getElementById('editButton');
+                if (editButton) {
+                    if (data.edit_url) {
+                        editButton.href = data.edit_url;
+                        editButton.classList.remove('d-none');
+                    } else {
+                        editButton.href = '#';
+                        editButton.classList.add('d-none');
+                    }
+                }
             } else {
                 throw new Error(data.message || 'Error en los datos recibidos');
             }
