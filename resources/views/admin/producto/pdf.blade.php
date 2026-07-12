@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -6,144 +6,143 @@
     <style>
         body {
             font-family: 'DejaVu Sans', sans-serif;
-            font-size: 10px;
+            font-size: 9px;
             margin: 0;
             padding: 0;
             color: #333;
         }
         .header-table {
             width: 100%;
-            border-bottom: 2px solid #555;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
         }
         .company-name {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
             color: #2c3e50;
         }
         .doc-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             text-align: right;
             color: #2c3e50;
         }
-        .table-details {
+        table.main-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 9px;
+            font-size: 8px;
         }
-        .table-details th {
-            background-color: #f5f5f5;
-            border: 1px solid #ddd;
-            padding: 6px;
+        table.main-table th {
+            background-color: #2c3e50;
+            color: #ffffff;
+            border: 1px solid #1a252f;
+            padding: 5px 4px;
             text-align: left;
             font-weight: bold;
             text-transform: uppercase;
         }
-        .table-details td {
-            border: 1px solid #ddd;
-            padding: 6px;
-            vertical-align: middle;
+        table.main-table td {
+            border: 1px solid #c0c0c0;
+            padding: 4px;
+            vertical-align: top;
         }
-        .text-right { text-align: right; }
+        .row-odd  { background-color: #ffffff; }
+        .row-even { background-color: #f4f4f4; }
+        .text-right  { text-align: right; }
         .text-center { text-align: center; }
-        .badge {
-            padding: 2px 5px;
-            border-radius: 10px;
-            font-size: 8px;
-            font-weight: bold;
-        }
-        .badge-success { background-color: #d1fae5; color: #065f46; }
-        .badge-danger { background-color: #fee2e2; color: #991b1b; }
+        .badge-activo   { color: #065f46; font-weight: bold; }
+        .badge-inactivo { color: #991b1b; font-weight: bold; }
+        .stock-ok  { color: #065f46; font-weight: bold; }
+        .stock-low { color: #991b1b; font-weight: bold; }
         .footer-note {
             font-size: 8px;
             color: #777;
             text-align: right;
-            margin-top: 20px;
+            margin-top: 15px;
+            border-top: 1px solid #ddd;
+            padding-top: 4px;
             position: fixed;
-            bottom: 20px;
+            bottom: 15px;
             right: 0;
             width: 100%;
         }
     </style>
 </head>
 <body>
+
     <table class="header-table">
         <tr>
             <td width="60%">
                 <div class="company-name">HIERROPAR</div>
-                <div style="font-size:10px;">Sistema de Gestion de Inventario</div>
+                <div style="font-size:9px; color:#666;">Sistema de Gestion de Inventario</div>
             </td>
-            <td width="40%" class="text-right">
+            <td width="40%" style="text-align:right;">
                 <div class="doc-title">REPORTE DE PRODUCTOS</div>
-                <div style="font-size:9px; color:#555;">Fecha: {{ now()->format('d/m/Y H:i A') }}</div>
+                <div style="font-size:8px; color:#555;">Fecha: {{ now()->format('d/m/Y H:i A') }}</div>
+                <div style="font-size:8px; color:#555;">Total registros: {{ $productos->count() }}</div>
             </td>
         </tr>
     </table>
 
-    <table class="table-details">
+    <table class="main-table">
         <thead>
             <tr>
                 <th width="5%">ID</th>
-                <th width="10%">CODIGO</th>
+                <th width="9%">CÓDIGO</th>
                 <th>PRODUCTO</th>
                 @if(!empty($includeAllDetails))
-                    <th width="12%">CATEGORIA</th>
-                    <th width="12%">MARCA</th>
-                    <th width="10%">UNIDAD</th>
+                    <th width="11%">CATEGORÍA</th>
+                    <th width="10%">MARCA</th>
+                    <th width="8%">UNIDAD</th>
                 @endif
                 @if(!empty($includePrices))
                     <th width="9%" class="text-right">P. COMPRA</th>
                     <th width="9%" class="text-right">P. VENTA</th>
                 @endif
                 @if(!empty($includeStock))
-                    <th width="7%" class="text-center">STOCK TOTAL</th>
-                    <th width="18%">STOCK POR SUCURSAL</th>
+                    <th width="7%" class="text-center">STOCK TOT.</th>
+                    @foreach(($almacenes ?? []) as $almacen)
+                        <th class="text-center" width="7%">{{ strtoupper(substr($almacen->nombre, 0, 8)) }}</th>
+                    @endforeach
                 @endif
-                <th width="8%" class="text-center">ESTADO</th>
+                <th width="7%" class="text-center">ESTADO</th>
             </tr>
         </thead>
         <tbody>
-            @foreach ($productos as $producto)
-            <tr>
+            @foreach ($productos as $i => $producto)
+            @php
+                $rowClass = ($i % 2 === 0) ? 'row-odd' : 'row-even';
+                $invByAlmacen = isset($producto->inventarios) ? $producto->inventarios->keyBy('almacen_id') : collect();
+            @endphp
+            <tr class="{{ $rowClass }}">
                 <td class="text-center">{{ $producto->id }}</td>
                 <td>{{ $producto->codigo }}</td>
-                <td>
-                    <strong>{{ $producto->nombre }}</strong>
-                </td>
+                <td><strong>{{ $producto->nombre }}</strong></td>
                 @if(!empty($includeAllDetails))
-                    <td>{{ $producto->categoria->nombre ?? 'N/A' }}</td>
-                    <td>{{ $producto->marca->nombre ?? 'N/A' }}</td>
-                    <td>{{ $producto->tipounidad->nombre ?? 'N/A' }}</td>
+                    <td>{{ optional($producto->categoria)->nombre ?? 'N/A' }}</td>
+                    <td>{{ optional($producto->marca)->nombre ?? 'N/A' }}</td>
+                    <td>{{ optional($producto->tipounidad)->nombre ?? 'N/A' }}</td>
                 @endif
                 @if(!empty($includePrices))
                     <td class="text-right">Bs. {{ number_format($producto->precio_compra, 2) }}</td>
                     <td class="text-right">Bs. {{ number_format($producto->precio_venta, 2) }}</td>
                 @endif
                 @if(!empty($includeStock))
+                    @php $stockTotal = $producto->stock_total ?? 0; @endphp
                     <td class="text-center">
-                        <span style="font-weight: bold; {{ (($producto->stock_total ?? 0) <= 10) ? 'color: #991b1b;' : 'color: #065f46;' }}">
-                            {{ number_format($producto->stock_total ?? 0, 0) }}
-                        </span>
+                        <span class="{{ $stockTotal <= 10 ? 'stock-low' : 'stock-ok' }}">{{ number_format($stockTotal, 0) }}</span>
                     </td>
-                    <td style="font-size:8px; line-height:1.2;">
-                        @php
-                            $invByAlmacen = $producto->inventarios->keyBy('almacen_id');
-                        @endphp
-                        @foreach(($almacenes ?? []) as $almacen)
-                            <div>
-                                <strong>{{ $almacen->nombre }}:</strong>
-                                {{ number_format(optional($invByAlmacen->get($almacen->id))->stock ?? 0, 0) }}
-                            </div>
-                        @endforeach
-                    </td>
+                    @foreach(($almacenes ?? []) as $almacen)
+                        @php $s = optional($invByAlmacen->get($almacen->id))->stock ?? 0; @endphp
+                        <td class="text-center {{ $s <= 5 ? 'stock-low' : '' }}">{{ number_format($s, 0) }}</td>
+                    @endforeach
                 @endif
                 <td class="text-center">
                     @if($producto->estado == 1)
-                        <span class="badge badge-success">ACTIVO</span>
+                        <span class="badge-activo">ACTIVO</span>
                     @else
-                        <span class="badge badge-danger">INACTIVO</span>
+                        <span class="badge-inactivo">INACTIVO</span>
                     @endif
                 </td>
             </tr>
@@ -152,8 +151,8 @@
     </table>
 
     <div class="footer-note">
-        Usuario: {{ auth()->user()->name }} | Pagina: {PAGINA_ACTUAL} de {TOTAL_PAGINAS} | Generado: {{ now()->format('d/m/Y H:i:s') }}
+        Usuario: {{ auth()->user()->name }} | Generado: {{ now()->format('d/m/Y H:i:s') }}
     </div>
+
 </body>
 </html>
-

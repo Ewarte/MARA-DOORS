@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Historial de Ajustes')
 
@@ -191,6 +191,7 @@
                                             {{ $option }}
                                         </option>
                                     @endforeach
+                                    <option value="all" {{ ($perPage ?? 10) == 'all' ? 'selected' : '' }}>Todos</option>
                                 </select>
                             </div>
                         </div>

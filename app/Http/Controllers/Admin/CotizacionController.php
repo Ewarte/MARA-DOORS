@@ -59,7 +59,8 @@ class CotizacionController extends Controller
         if ($dateFrom) $query->whereDate('fecha_hora', '>=', $dateFrom);
         if ($dateTo) $query->whereDate('fecha_hora', '<=', $dateTo);
 
-        $cotizaciones = $query->orderBy($sort, $direction)->paginate($perPage);
+        $perPageValue = $perPage === 'all' ? 1000000 : (in_array((int)$perPage, [5, 10, 15, 20, 25]) ? (int)$perPage : 10);
+        $cotizaciones = $query->orderBy($sort, $direction)->paginate($perPageValue);
 
         if ($request->ajax()) {
             return view('admin.cotizacion.index', compact('cotizaciones', 'busqueda', 'dateFrom', 'dateTo', 'perPage', 'sort', 'direction'));

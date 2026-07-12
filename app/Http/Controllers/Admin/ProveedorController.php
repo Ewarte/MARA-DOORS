@@ -29,7 +29,7 @@ class ProveedorController extends Controller
             $busqueda = $request->get('busqueda');
             $perPage  = $request->get('per_page', 10);
 
-            if (!in_array($perPage, [5, 10, 15, 20, 25])) $perPage = 10;
+            $perPageValue = $perPage === 'all' ? 1000000 : (in_array((int)$perPage, [5, 10, 15, 20, 25]) ? (int)$perPage : 10);
 
             $query = Proveedor::with('persona.documento');
 
@@ -46,7 +46,7 @@ class ProveedorController extends Controller
                 });
             }
 
-            $proveedores = $query->paginate($perPage);
+            $proveedores = $query->paginate($perPageValue);
 
             $totalProveedores = Proveedor::count();
             $proveedoresActivos = Proveedor::whereHas('persona', fn($q) => $q->where('estado', 1))->count();

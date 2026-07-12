@@ -52,7 +52,7 @@ class VentaController extends Controller
         $estadoPago = $request->get('estado_pago');
 
         // Validar per_page y direction
-        if (!in_array($perPage, [5, 10, 15, 20, 25])) $perPage = 10;
+        $perPageValue = $perPage === 'all' ? 1000000 : (in_array((int)$perPage, [5, 10, 15, 20, 25]) ? (int)$perPage : 10);
         if (!in_array($direction, ['asc', 'desc'])) $direction = 'desc';
 
         $query = Venta::with(['comprobante', 'cliente.persona', 'user', 'pagos'])
@@ -119,7 +119,7 @@ class VentaController extends Controller
                 break;
         }
 
-        $ventas = $query->paginate($perPage);
+        $ventas = $query->paginate($perPageValue);
 
         // Estadísticas para el footer - Filtradas por almacen
         $statsQuery = Venta::where('estado', 1);

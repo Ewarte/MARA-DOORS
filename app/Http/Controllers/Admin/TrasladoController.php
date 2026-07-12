@@ -36,9 +36,7 @@ class TrasladoController extends Controller
         $perPage  = $request->get('per_page', 10);
 
         // Validar perPage
-        if (!in_array($perPage, [5,10,15,20,25])) {
-            $perPage = 10;
-        }
+        $perPageValue = $perPage === 'all' ? 1000000 : (in_array((int)$perPage, [5,10,15,20,25]) ? (int)$perPage : 10);
 
         // Construir query
         $query = Traslado::with([
@@ -67,7 +65,7 @@ class TrasladoController extends Controller
         }
 
         // Ordenar y paginar
-        $traslados = $query->orderBy('fecha_hora', 'desc')->paginate($perPage);
+        $traslados = $query->orderBy('fecha_hora', 'desc')->paginate($perPageValue);
 
         // Traer almacenes activos (opcional, para filtros)
         $almacenes = Almacen::where('estado', true)->get();

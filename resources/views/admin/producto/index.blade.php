@@ -125,6 +125,50 @@
             background: #3b82f6;
             color: #fff;
         }
+        .btn-stock-branch {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.15rem 0.4rem;
+            border-radius: 6px;
+            font-size: 0.68rem;
+            font-weight: 500;
+            background-color: #f8fafc;
+            border-color: #e2e8f0;
+            color: #475569;
+            transition: all 0.2s ease;
+        }
+
+        .btn-stock-branch:hover {
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #1e293b;
+        }
+
+        .btn-stock-branch .stock-name {
+            margin-right: 0.25rem;
+            max-width: 90px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .badge-stock {
+            display: inline-block;
+            padding: 0.05rem 0.3rem;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 700;
+        }
+
+        .badge-stock.low {
+            background-color: #fee2e2;
+            color: #ef4444;
+        }
+
+        .badge-stock.normal {
+            background-color: #dcfce7;
+            color: #10b981;
+        }
     </style>
 @endpush
 
@@ -143,11 +187,19 @@
                     </ol>
                 </nav>
             </div>
-            @can('crear-producto')
-            <a href="{{ route('productos.create') }}" class="btn-create">
-                <i class="fas fa-plus"></i> Nuevo Producto
-            </a>
-            @endcan
+            <div class="d-flex gap-2 align-items-center">
+                <button type="button" class="btn btn-outline-success btn-sm d-flex align-items-center gap-2" id="btnExportAllExcel" style="padding: 0.5rem 1rem; border-radius: 8px; font-weight: 500;">
+                    <i class="fas fa-file-excel"></i> Exportar Excel
+                </button>
+                <button type="button" class="btn btn-outline-danger btn-sm d-flex align-items-center gap-2" id="btnExportAllPdf" style="padding: 0.5rem 1rem; border-radius: 8px; font-weight: 500;">
+                    <i class="fas fa-file-pdf"></i> Exportar PDF
+                </button>
+                @can('crear-producto')
+                <a href="{{ route('productos.create') }}" class="btn-create ms-2">
+                    <i class="fas fa-plus"></i> Nuevo Producto
+                </a>
+                @endcan
+            </div>
         </div>
 
         <div class="card-clean">
@@ -160,11 +212,11 @@
             <div class="search-container">
                 <form action="{{ route('productos.index') }}" method="GET" id="searchForm">
                     <input type="hidden" name="estado" id="estado" value="{{ $estado ?? 'all' }}">
-                    <input type="hidden" name="stock_filter" id="stock_filter" value="{{ $stockFilter ?? 'all' }}">
+                    <input type="hidden" name="stock" id="stock" value="{{ $stock ?? 'all' }}">
 
                     <div class="row g-3">
                         <!-- Búsqueda -->
-                        <div class="col-lg-4">
+                        <div class="col-lg-3">
                             <label class="info-subtext mb-2 text-uppercase letter-spacing-05 small fw-bold">Búsqueda</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-white border-end-0" style="padding: 0.8rem 0.95rem;">
@@ -188,15 +240,29 @@
                             </select>
                         </div>
 
+                        <!-- Almacén -->
+                        <div class="col-lg-2">
+                            <label for="almacen_id" class="info-subtext mb-2 text-uppercase letter-spacing-05 small fw-bold">Almacén</label>
+                            <select name="almacen_id" id="almacen_id" class="form-select form-select-lg form-control-clean">
+                                <option value="all" {{ ($almacenId ?? 'all') === 'all' ? 'selected' : '' }}>Todos</option>
+                                @foreach($almacenes as $almacen)
+                                    <option value="{{ $almacen->id }}" {{ (string)($almacenId ?? 'all') === (string)$almacen->id ? 'selected' : '' }}>
+                                        {{ $almacen->nombre }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
                         <!-- Ver por página -->
-                        <div class="col-lg-1">
+                        <div class="col-lg-2">
                             <label for="per_page" class="info-subtext mb-2 text-uppercase letter-spacing-05 small fw-bold">Ver</label>
                             <select name="per_page" id="per_page" class="form-select form-select-lg form-control-clean">
-                                @foreach([5, 10, 15, 20, 25] as $option)
+                                @foreach([5, 10, 15, 20, 25, 50, 100] as $option)
                                     <option value="{{ $option }}" {{ ($perPage ?? 10) == $option ? 'selected' : '' }}>
                                         {{ $option }}
                                     </option>
                                 @endforeach
+                                <option value="all" {{ ($perPage ?? 10) == 'all' ? 'selected' : '' }}>Todos</option>
                             </select>
                         </div>
 
@@ -224,11 +290,11 @@
 
                                 <span class="small text-muted mx-2 fw-semibold">|</span>
                                 <span class="small text-muted me-2 fw-semibold">Stock:</span>
-                                <button type="button" class="filter-pill stock-pill {{ ($stockFilter ?? 'all') === 'all' ? 'active' : '' }}" data-filter="stock" data-value="all">Todo el stock</button>
-                                <button type="button" class="filter-pill stock-pill {{ ($stockFilter ?? 'all') === 'low' ? 'active' : '' }}" data-filter="stock" data-value="low">
+                                <button type="button" class="filter-pill stock-pill {{ ($stock ?? 'all') === 'all' ? 'active' : '' }}" data-filter="stock" data-value="all">Todo el stock</button>
+                                <button type="button" class="filter-pill stock-pill {{ ($stock ?? 'all') === 'low' ? 'active' : '' }}" data-filter="stock" data-value="low">
                                     <i class="fas fa-exclamation-triangle me-1"></i> Bajo stock
                                 </button>
-                                <button type="button" class="filter-pill stock-pill {{ ($stockFilter ?? 'all') === 'normal' ? 'active' : '' }}" data-filter="stock" data-value="normal">Stock normal</button>
+                                <button type="button" class="filter-pill stock-pill {{ ($stock ?? 'all') === 'normal' ? 'active' : '' }}" data-filter="stock" data-value="normal">Stock normal</button>
                             </div>
                         </div>
                     </div>
@@ -321,12 +387,20 @@
                                         </div>
                                     </td>
                                     <td class="text-center">
-                                        @php
-                                            $totalStock = $item->inventarios->sum('stock');
-                                        @endphp
-                                        <span class="badge {{ $totalStock <= 10 ? 'bg-danger' : 'bg-success' }}">
-                                            {{ $totalStock }}
-                                        </span>
+                                        <div class="d-flex flex-column align-items-center gap-2">
+                                            <span class="badge {{ ($item->stock_total ?? 0) <= 10 ? 'bg-danger' : 'bg-success' }} px-3 py-1.5" style="font-size: 0.85rem;" title="Stock Total">
+                                                Total: {{ number_format($item->stock_total ?? 0, 0) }}
+                                            </span>
+                                            <div class="d-flex flex-wrap gap-1 justify-content-center">
+                                                @foreach ($item->inventarios as $inv)
+                                                    <span class="btn-stock-branch border text-nowrap" title="{{ $inv->almacen->nombre }}">
+                                                        <i class="fas fa-warehouse text-muted small me-1"></i>
+                                                        <span class="stock-name">{{ $inv->almacen->nombre }}:</span>
+                                                        <span class="badge-stock {{ $inv->stock <= 5 ? 'low' : 'normal' }}">{{ number_format($inv->stock, 0) }}</span>
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        </div>
                                     </td>
                                     <td>
                                         <span class="badge bg-light text-dark border">{{ $item->categoria->nombre }}</span>
@@ -341,8 +415,8 @@
                                     <td>
                                         <div class="btn-action-group">
                                             @can('ver-producto')
-                                                <button class="btn-icon-soft" data-bs-toggle="modal"
-                                                    data-bs-target="#verModal-{{ $item->id }}" title="Ver Detalles">
+                                                <button class="btn-icon-soft btn-ver-producto"
+                                                    data-product-id="{{ $item->id }}" title="Ver Detalles">
                                                     <i class="fas fa-eye"></i>
                                                 </button>
                                             @endcan
@@ -360,146 +434,18 @@
                                             @endcan
 
                                             @can('eliminar-producto')
-                                                <button type="button" class="btn-icon-soft delete" data-bs-toggle="modal"
-                                                    data-bs-target="#confirmModal-{{ $item->id }}" title="Eliminar/Estado">
+                                                <button type="button" class="btn-icon-soft delete btn-eliminar-producto"
+                                                    data-product-id="{{ $item->id }}"
+                                                    data-product-nombre="{{ $item->nombre }}"
+                                                    data-product-estado="{{ $item->estado }}"
+                                                    data-delete-url="{{ route('productos.destroy', $item) }}"
+                                                    title="Eliminar/Estado">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             @endcan
                                         </div>
                                     </td>
                                 </tr>
-
-                                <!-- Modal de detalles -->
-                                <div class="modal fade" id="verModal-{{ $item->id }}" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-scrollable modal-lg modal-dialog-centered">
-                                        <div class="modal-content modal-content-clean">
-                                            <div class="modal-header modal-header-clean">
-                                                <h5 class="modal-title fs-6">Detalles del Producto</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body p-4">
-                                                <div class="row g-4 d-flex align-items-center mb-4">
-                                                    <div class="col-auto">
-                                                        <div class="product-avatar" style="width: 60px; height: 60px; font-size: 1.5rem;">
-                                                            <i class="fas fa-box"></i>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col">
-                                                        <h4 class="mb-1 text-dark fw-bold">{{ $item->nombre }}</h4>
-                                                        <span class="badge bg-light text-dark border">{{ $item->codigo }}</span>
-                                                    </div>
-                                                </div>
-
-                                                <div class="row g-3">
-                                                    <div class="col-md-6">
-                                                        <label class="info-subtext mb-1">Descripción</label>
-                                                        <div class="p-2 border rounded bg-light small">{{ $item->descripcion ?? 'Sin descripción' }}</div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="info-subtext mb-1">Precio Venta</label>
-                                                        <div class="fw-bold">Bs {{ number_format($item->precio_venta, 2) }}</div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="info-subtext mb-1">Precio Compra</label>
-                                                        <div class="fw-bold text-muted">Bs {{ number_format($item->precio_compra, 2) }}</div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <label class="info-subtext mb-1">Categoría</label>
-                                                        <div><i class="fas fa-tag me-1 small"></i>{{ $item->categoria->nombre }}</div>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label class="info-subtext mb-1">Marca</label>
-                                                        <div><i class="fas fa-copyright me-1 small"></i>{{ $item->marca->nombre }}</div>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label class="info-subtext mb-1">Unidad</label>
-                                                        <div><i class="fas fa-ruler me-1 small"></i>{{ $item->tipounidad->nombre }}</div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="mt-4">
-                                                    <h6 class="fw-semibold border-bottom pb-2 small uppercase letter-spacing-05">
-                                                        <i class="fas fa-warehouse me-2 text-muted"></i>Stock por Almacén
-                                                    </h6>
-                                                    <div class="row mt-2">
-                                                        @forelse($item->inventarios as $inv)
-                                                            <div class="col-md-6 mb-2">
-                                                                <div class="d-flex justify-content-between align-items-center p-2 border rounded-3 bg-white">
-                                                                    <span class="small fw-medium">{{ $inv->almacen->nombre }}</span>
-                                                                    <span class="badge {{ $inv->stock <= 5 ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success' }} px-3">
-                                                                        {{ $inv->stock }}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        @empty
-                                                            <div class="col-12">
-                                                                <div class="alert alert-light border py-2 small">Sin registros de stock</div>
-                                                            </div>
-                                                        @endforelse
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer border-0">
-                                                <button type="button" class="btn btn-light btn-sm px-4" data-bs-dismiss="modal">Cerrar</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Modal de confirmación -->
-                                <div class="modal fade" id="confirmModal-{{ $item->id }}" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-centered">
-                                        <div class="modal-content modal-content-clean">
-                                            <div class="modal-header modal-header-clean">
-                                                <h5 class="modal-title fs-6">Confirmar acción</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body p-4 text-center">
-                                                <h6 class="mb-3">
-                                                    @if($item->estado == 1)
-                                                        ¿Eliminar o Desactivar producto?
-                                                    @else
-                                                        ¿Restaurar producto?
-                                                    @endif
-                                                </h6>
-                                                <p class="text-muted small mb-4">
-                                                    @if($item->estado == 1)
-                                                        Puede <strong>desactivar</strong> el producto para que no aparezca en ventas, o <strong>eliminarlo</strong> permanentemente pero solo si no tiene registros de ventas o compras.
-                                                    @else
-                                                        El producto volverá a estar <strong>activo</strong> en el sistema.
-                                                    @endif
-                                                </p>
-
-                                                <div class="d-flex justify-content-center gap-2">
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">Cancelar</button>
-
-                                                    @if($item->estado == 1)
-                                                        <form action="{{ route('productos.destroy', $item) }}" method="post" class="d-inline">
-                                                            @method('DELETE')
-                                                            @csrf
-                                                            <input type="hidden" name="accion" value="inactivar">
-                                                            <button type="submit" class="btn btn-outline-warning btn-sm px-3">Desactivar</button>
-                                                        </form>
-                                                        <form action="{{ route('productos.destroy', $item) }}" method="post" class="d-inline">
-                                                            @method('DELETE')
-                                                            @csrf
-                                                            <input type="hidden" name="accion" value="eliminar">
-                                                            <button type="submit" class="btn btn-outline-danger btn-sm px-3">Eliminar</button>
-                                                        </form>
-                                                    @else
-                                                        <form action="{{ route('productos.destroy', $item) }}" method="post" class="d-inline">
-                                                            @method('DELETE')
-                                                            @csrf
-                                                            <input type="hidden" name="accion" value="activar">
-                                                            <button type="submit" class="btn btn-outline-success btn-sm px-3">Activar</button>
-                                                        </form>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                             @endforeach
                         </tbody>
 
@@ -538,7 +484,51 @@
                     </div>
                 </div>
             </div>
-            <div id="product-modals"></div>
+
+            <!-- === MODAL ÚNICO: Ver Detalles de Producto (cargado por AJAX) === -->
+            <div class="modal fade" id="verProductoModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-scrollable modal-lg modal-dialog-centered">
+                    <div class="modal-content modal-content-clean">
+                        <div class="modal-header modal-header-clean">
+                            <h5 class="modal-title fs-6">Detalles del Producto</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4" id="verProductoModalBody">
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-secondary" role="status"></div>
+                                <p class="mt-3 text-muted small">Cargando detalles...</p>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-0">
+                            <button type="button" class="btn btn-light btn-sm px-4" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- === MODAL ÚNICO: Confirmar Eliminar/Estado === -->
+            <div class="modal fade" id="confirmProductoModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content modal-content-clean">
+                        <div class="modal-header modal-header-clean">
+                            <h5 class="modal-title fs-6">Confirmar acción</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4 text-center">
+                            <h6 class="mb-3" id="confirmModalTitle"></h6>
+                            <p class="text-muted small mb-4" id="confirmModalText"></p>
+                            <div class="d-flex justify-content-center gap-2" id="confirmModalActions"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overlay de carga para "Todos" -->
+            <div id="loadingOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.45); backdrop-filter:blur(3px); align-items:center; justify-content:center; flex-direction:column;">
+                <div class="spinner-border text-light mb-3" style="width:3rem; height:3rem;" role="status"></div>
+                <p class="text-white fw-semibold mb-1">Cargando todos los productos...</p>
+                <p class="text-white-50 small">Esto puede tardar unos segundos</p>
+            </div>
 
             <!-- Modal de Exportación Genérico -->
             <div class="modal fade" id="exportModal" tabindex="-1" aria-hidden="true">
@@ -604,19 +594,9 @@
 <script>
     let debounceTimer;
     const tableContainer = document.getElementById('table-container');
-    const productModals = document.getElementById('product-modals');
     let selectedProducts = new Set();
 
-    function moveProductModals() {
-        if (!tableContainer || !productModals) return;
 
-        const modals = tableContainer.querySelectorAll('.modal.fade[id^="verModal-"], .modal.fade[id^="confirmModal-"]');
-        productModals.innerHTML = '';
-
-        modals.forEach(modal => {
-            productModals.appendChild(modal);
-        });
-    }
 
     function initializeSelectionSystem() {
         const selectionActions = document.getElementById('selectionActions');
@@ -690,17 +670,30 @@
             deselectAllBtn.dataset.bound = '1';
         }
 
+        const btnExportAllExcel = document.getElementById('btnExportAllExcel');
+        const btnExportAllPdf = document.getElementById('btnExportAllPdf');
+
+        if (btnExportAllExcel && !btnExportAllExcel.dataset.bound) {
+            btnExportAllExcel.addEventListener('click', () => openExportModal('excel', true));
+            btnExportAllExcel.dataset.bound = '1';
+        }
+
+        if (btnExportAllPdf && !btnExportAllPdf.dataset.bound) {
+            btnExportAllPdf.addEventListener('click', () => openExportModal('pdf', true));
+            btnExportAllPdf.dataset.bound = '1';
+        }
+
         if (exportExcelBtn && !exportExcelBtn.dataset.bound) {
-            exportExcelBtn.addEventListener('click', () => openExportModal('excel'));
+            exportExcelBtn.addEventListener('click', () => openExportModal('excel', false));
             exportExcelBtn.dataset.bound = '1';
         }
 
         if (exportPdfBtn && !exportPdfBtn.dataset.bound) {
-            exportPdfBtn.addEventListener('click', () => openExportModal('pdf'));
+            exportPdfBtn.addEventListener('click', () => openExportModal('pdf', false));
             exportPdfBtn.dataset.bound = '1';
         }
 
-        function openExportModal(format) {
+        function openExportModal(format, isAll = false) {
             const modal = new bootstrap.Modal(document.getElementById('exportModal'));
             const title = document.getElementById('exportModalTitle');
             const formatInput = document.getElementById('exportFormat');
@@ -709,7 +702,14 @@
             const alertIcon = document.getElementById('exportAlertIcon');
 
             formatInput.value = format;
-            document.getElementById('exportCountDisplay').textContent = selectedProducts.size;
+
+            if (isAll) {
+                selectedProducts.clear();
+                updateSelectionUI();
+                alertBox.querySelector('.small.fw-medium').innerHTML = 'Se exportarán <strong>todos</strong> los productos aplicando los filtros actuales.';
+            } else {
+                alertBox.querySelector('.small.fw-medium').innerHTML = `Se exportarán <strong id="exportCountDisplay">${selectedProducts.size}</strong> productos seleccionados.`;
+            }
 
             if (format === 'excel') {
                 title.innerHTML = '<i class="fas fa-file-excel me-2 text-success"></i> Exportar a Excel';
@@ -757,6 +757,7 @@
         const categoriaSelect = document.getElementById('categoria_id');
         const estadoInput = document.getElementById('estado');
         const stockFilterInput = document.getElementById('stock');
+        const almacenSelect = document.getElementById('almacen_id');
 
         const params = new URLSearchParams();
         if (searchInput && searchInput.value.trim()) params.set('busqueda', searchInput.value.trim());
@@ -764,6 +765,7 @@
         if (categoriaSelect) params.set('categoria_id', categoriaSelect.value);
         if (estadoInput) params.set('estado', estadoInput.value);
         if (stockFilterInput) params.set('stock', stockFilterInput.value);
+        if (almacenSelect) params.set('almacen_id', almacenSelect.value);
 
         const currentUrl = new URL(window.location.href);
         if (currentUrl.searchParams.get('sort')) params.set('sort', currentUrl.searchParams.get('sort'));
@@ -822,6 +824,16 @@
                 form.appendChild(input);
             });
 
+            // Copiar los filtros activos al formulario de exportación
+            const params = buildQueryParams();
+            for (const [key, value] of params.entries()) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
+
             const options = { includePrices, includeStock, includeAllDetails };
             Object.keys(options).forEach(key => {
                 const input = document.createElement('input');
@@ -833,6 +845,7 @@
 
             document.body.appendChild(form);
             form.submit();
+            document.body.removeChild(form);
 
             setTimeout(() => {
                 if (document.getElementById('deselectAll')) {
@@ -877,12 +890,19 @@
             categoriaSelect.dataset.bound = '1';
         }
 
+        const almacenSelect = document.getElementById('almacen_id');
+        if (almacenSelect && !almacenSelect.dataset.bound) {
+            almacenSelect.addEventListener('change', () => fetchProducts());
+            almacenSelect.dataset.bound = '1';
+        }
+
         const resetFiltersBtn = document.getElementById('resetFilters');
         if (resetFiltersBtn && !resetFiltersBtn.dataset.bound) {
             resetFiltersBtn.addEventListener('click', function() {
                 if (searchInput) searchInput.value = '';
                 if (perPageSelect) perPageSelect.value = '10';
                 if (categoriaSelect) categoriaSelect.value = 'all';
+                if (almacenSelect) almacenSelect.value = 'all';
                 const estadoInput = document.getElementById('estado');
                 if (estadoInput) estadoInput.value = 'all';
                 const stockFilterInput = document.getElementById('stock');
@@ -943,7 +963,13 @@
             fetchUrl = `{{ route('productos.index') }}?${params.toString()}`;
         }
 
-        if (tableContainer) {
+        // Mostrar overlay si se solicita "Todos"
+        const perPageSelect = document.getElementById('per_page');
+        const isAll = perPageSelect && perPageSelect.value === 'all';
+        const overlay = document.getElementById('loadingOverlay');
+        if (isAll && overlay) {
+            overlay.style.display = 'flex';
+        } else if (tableContainer) {
             tableContainer.style.opacity = '0.6';
         }
 
@@ -966,7 +992,6 @@
 
             if (newContainer && tableContainer) {
                 tableContainer.innerHTML = newContainer.innerHTML;
-                moveProductModals();
             }
 
             const resultsCount = newDoc.getElementById('resultsCount');
@@ -975,9 +1000,8 @@
                 resultsCountElement.textContent = resultsCount.textContent;
             }
 
-            if (tableContainer) {
-                tableContainer.style.opacity = '1';
-            }
+            if (tableContainer) tableContainer.style.opacity = '1';
+            if (overlay) overlay.style.display = 'none';
 
             selectedProducts.clear();
             const selectionActions = document.getElementById('selectionActions');
@@ -990,9 +1014,8 @@
         })
         .catch(error => {
             console.error('Error al cargar productos:', error);
-            if (tableContainer) {
-                tableContainer.style.opacity = '1';
-            }
+            if (tableContainer) tableContainer.style.opacity = '1';
+            if (overlay) overlay.style.display = 'none';
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
@@ -1004,21 +1027,146 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        moveProductModals();
         syncFilterPills();
         initializeEvents();
         initializeSelectionSystem();
     });
 
+    // ====== MODAL DINÁMICO: Ver Detalles ======
+    // Usamos route() con ID=0 como placeholder y lo reemplazamos en JS con el ID real
+    const detalleUrlTemplate = '{{ route("productos.detalle", 0) }}';
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-ver-producto');
+        if (!btn) return;
+        const productId = btn.dataset.productId;
+        const modalBody = document.getElementById('verProductoModalBody');
+        const modalEl   = document.getElementById('verProductoModal');
+
+        // Mostrar spinner
+        modalBody.innerHTML = `<div class="text-center py-5">
+            <div class="spinner-border text-secondary" role="status"></div>
+            <p class="mt-3 text-muted small">Cargando detalles...</p>
+        </div>`;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        const fetchUrl = detalleUrlTemplate.replace('/0/', `/${productId}/`);
+        fetch(fetchUrl, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(p => {
+            const stockHtml = p.inventarios.length
+                ? p.inventarios.map(inv => `
+                    <div class="col-md-6 mb-2">
+                        <div class="d-flex justify-content-between align-items-center p-2 border rounded-3 bg-white">
+                            <span class="small fw-medium">${inv.almacen}</span>
+                            <span class="badge ${inv.stock <= 5 ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'} px-3">${inv.stock}</span>
+                        </div>
+                    </div>`).join('')
+                : '<div class="col-12"><div class="alert alert-light border py-2 small">Sin registros de stock</div></div>';
+
+            modalBody.innerHTML = `
+                <div class="row g-4 d-flex align-items-center mb-4">
+                    <div class="col-auto">
+                        <div class="product-avatar" style="width:60px;height:60px;font-size:1.5rem;"><i class="fas fa-box"></i></div>
+                    </div>
+                    <div class="col">
+                        <h4 class="mb-1 text-dark fw-bold">${p.nombre}</h4>
+                        <span class="badge bg-light text-dark border">${p.codigo}</span>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="info-subtext mb-1">Descripción</label>
+                        <div class="p-2 border rounded bg-light small">${p.descripcion || 'Sin descripción'}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="info-subtext mb-1">Precio Venta</label>
+                        <div class="fw-bold">Bs ${parseFloat(p.precio_venta).toFixed(2)}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="info-subtext mb-1">Precio Compra</label>
+                        <div class="fw-bold text-muted">Bs ${parseFloat(p.precio_compra).toFixed(2)}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="info-subtext mb-1">Categoría</label>
+                        <div><i class="fas fa-tag me-1 small"></i>${p.categoria || '-'}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="info-subtext mb-1">Marca</label>
+                        <div><i class="fas fa-copyright me-1 small"></i>${p.marca || '-'}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="info-subtext mb-1">Unidad</label>
+                        <div><i class="fas fa-ruler me-1 small"></i>${p.tipounidad || '-'}</div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <h6 class="fw-semibold border-bottom pb-2 small"><i class="fas fa-warehouse me-2 text-muted"></i>Stock por Almacén</h6>
+                    <div class="row mt-2">${stockHtml}</div>
+                </div>`;
+        })
+        .catch(() => {
+            modalBody.innerHTML = '<div class="alert alert-danger m-3">Error al cargar los detalles.</div>';
+        });
+    });
+
+    // ====== MODAL DINÁMICO: Confirmar Eliminar/Estado ======
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-eliminar-producto');
+        if (!btn) return;
+
+        const nombre  = btn.dataset.productNombre;
+        const estado  = parseInt(btn.dataset.productEstado);
+        const url     = btn.dataset.deleteUrl;
+        const csrf    = '{{ csrf_token() }}';
+
+        const titleEl   = document.getElementById('confirmModalTitle');
+        const textEl    = document.getElementById('confirmModalText');
+        const actionsEl = document.getElementById('confirmModalActions');
+
+        if (estado === 1) {
+            titleEl.textContent   = '¿Eliminar o Desactivar producto?';
+            textEl.innerHTML      = `Puede <strong>desactivar</strong> <em>${nombre}</em> para que no aparezca en ventas, o <strong>eliminarlo</strong> permanentemente.`;
+            actionsEl.innerHTML   = `
+                <button class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">Cancelar</button>
+                <form action="${url}" method="post" class="d-inline">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <input type="hidden" name="_token" value="${csrf}">
+                    <input type="hidden" name="accion" value="inactivar">
+                    <button type="submit" class="btn btn-outline-warning btn-sm px-3">Desactivar</button>
+                </form>
+                <form action="${url}" method="post" class="d-inline">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <input type="hidden" name="_token" value="${csrf}">
+                    <input type="hidden" name="accion" value="eliminar">
+                    <button type="submit" class="btn btn-outline-danger btn-sm px-3">Eliminar</button>
+                </form>`;
+        } else {
+            titleEl.textContent   = '¿Restaurar producto?';
+            textEl.innerHTML      = `El producto <em>${nombre}</em> volverá a estar <strong>activo</strong> en el sistema.`;
+            actionsEl.innerHTML   = `
+                <button class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">Cancelar</button>
+                <form action="${url}" method="post" class="d-inline">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <input type="hidden" name="_token" value="${csrf}">
+                    <input type="hidden" name="accion" value="activar">
+                    <button type="submit" class="btn btn-outline-success btn-sm px-3">Activar</button>
+                </form>`;
+        }
+
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmProductoModal')).show();
+    });
+
+    // Click en fila abre el modal de detalles
     document.addEventListener('click', function(e) {
         if (e.target.closest('tr[data-product-id]') && !e.target.closest('.btn-action-group') && !e.target.closest('.custom-checkbox')) {
             const row = e.target.closest('tr[data-product-id]');
             if (row) {
-                const productId = row.dataset.productId;
-                const viewBtn = row.querySelector(`[data-bs-target="#verModal-${productId}"]`);
-                if (viewBtn) {
-                    viewBtn.click();
-                }
+                const btn = row.querySelector('.btn-ver-producto');
+                if (btn) btn.click();
             }
         }
     });

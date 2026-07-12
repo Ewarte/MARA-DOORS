@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Clientes')
 
@@ -62,6 +62,7 @@
                                             {{ $option }}
                                         </option>
                                     @endforeach
+                                    <option value="all" {{ ($perPage ?? 10) == 'all' ? 'selected' : '' }}>Todos</option>
                                 </select>
                             </div>
                         </div>

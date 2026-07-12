@@ -31,7 +31,7 @@ class ClienteController extends Controller
         $sort = $request->get('sort', 'razon_social');
         $direction = $request->get('direction', 'asc');
 
-        if (!in_array($perPage, [5, 10, 15, 20, 25])) $perPage = 10;
+        $perPageValue = $perPage === 'all' ? 1000000 : (in_array((int)$perPage, [5, 10, 15, 20, 25]) ? (int)$perPage : 10);
         if (!in_array($direction, ['asc', 'desc'])) $direction = 'asc';
         if (!in_array($sort, ['id', 'razon_social', 'grupo', 'telefono', 'documento', 'tipo_persona', 'estado'])) {
             $sort = 'razon_social';
@@ -85,7 +85,7 @@ class ClienteController extends Controller
                 break;
         }
 
-        $clientes = $query->paginate($perPage);
+        $clientes = $query->paginate($perPageValue);
 
         $totalClientes = Cliente::count();
         $clientesActivos = Cliente::whereHas('persona', fn($q) => $q->where('estado', 1))->count();

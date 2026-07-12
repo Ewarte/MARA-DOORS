@@ -29,7 +29,7 @@ class ProductoController extends Controller
     function __construct(ProductoService $productoService)
     {
         $this->productoService = $productoService;
-        $this->middleware('permission:ver-producto', ['only' => ['index']]);
+        $this->middleware('permission:ver-producto', ['only' => ['index', 'getDetalle']]);
         $this->middleware('permission:crear-producto', ['only' => ['create', 'store']]);
         $this->middleware('permission:editar-producto', ['only' => ['edit', 'update']]); 
         $this->middleware('permission:eliminar-producto', ['only' => ['destroy']]);
@@ -46,17 +46,106 @@ class ProductoController extends Controller
         $estado = $request->get('estado', 'all');
         $categoriaId = $request->get('categoria_id', 'all');
         $stock = $request->get('stock', 'all');
+        $almacenId = $request->get('almacen_id', 'all');
 
         // Validar per_page y direction
-        if (!in_array($perPage, [5, 10, 15, 20, 25])) $perPage = 10;
+        $perPageValue = $perPage === 'all' ? 'all' : (in_array((int)$perPage, [5, 10, 15, 20, 25, 50, 100]) ? (int)$perPage : 10);
         if (!in_array($direction, ['asc', 'desc'])) $direction = 'asc';
 
-        $query = Producto::with([
-            'marca',
-            'categoria',
-            'tipounidad',
-            'inventarios.almacen'
-        ])->withSum('inventarios as stock_total', 'stock');
+        $query = $this->buildProductQuery($request);
+        $query = $this->applySorting($query, $request);
+
+        if ($perPageValue === 'all') {
+            // Aumentar límite de tiempo y memoria para consultas grandes
+            set_time_limit(120);
+            ini_set('memory_limit', '256M');
+            $allItems = $query->get();
+            $total = $allItems->count();
+            // Envolver en un paginador manual para que la vista funcione igual
+            $productos = new \Illuminate\Pagination\LengthAwarePaginator(
+                $allItems,
+                $total,
+                max($total, 1),
+                1,
+                ['path' => request()->url(), 'query' => request()->query()]
+            );
+        } else {
+            $productos = $query->paginate($perPageValue);
+        }
+
+        // Estadísticas para el footer (con respecto al almacén si está seleccionado)
+        if ($almacenId !== 'all' && is_numeric($almacenId)) {
+            $totalStockGlobal = DB::table('inventario_almacenes')->where('almacen_id', $almacenId)->sum('stock');
+            
+            $bajoStockCount = Producto::join('inventario_almacenes', 'productos.id', '=', 'inventario_almacenes.producto_id')
+                ->where('inventario_almacenes.almacen_id', $almacenId)
+                ->select('productos.id')
+                ->groupBy('productos.id')
+                ->havingRaw('SUM(inventario_almacenes.stock) <= 10')
+                ->get()
+                ->count();
+        } else {
+            $totalStockGlobal = DB::table('inventario_almacenes')->sum('stock');
+            
+            $bajoStockCount = Producto::join('inventario_almacenes', 'productos.id', '=', 'inventario_almacenes.producto_id')
+                ->select('productos.id')
+                ->groupBy('productos.id')
+                ->havingRaw('SUM(inventario_almacenes.stock) <= 10')
+                ->get()
+                ->count();
+        }
+        
+        $productosActivos = Producto::where('estado', 1)->count();
+        $almacenes = Almacen::where('estado', true)->get();
+        $categorias = Categoria::orderBy('nombre')->get();
+
+        $viewData = compact(
+            'productos', 'busqueda', 'perPage', 'almacenes', 'categorias',
+            'sort', 'direction', 'estado', 'categoriaId', 'stock', 'almacenId',
+            'totalStockGlobal', 'productosActivos', 'bajoStockCount'
+        );
+
+        if ($request->ajax()) {
+            return view('admin.producto.index', $viewData);
+        }
+
+        return view('admin.producto.index', $viewData);
+    }
+
+    private function buildProductQuery(Request $request)
+    {
+        $busqueda = $request->get('busqueda');
+        $estado = $request->get('estado', 'all');
+        $categoriaId = $request->get('categoria_id', 'all');
+        $stock = $request->get('stock', 'all');
+        $almacenId = $request->get('almacen_id', 'all');
+
+        if ($almacenId !== 'all' && is_numeric($almacenId)) {
+            $query = Producto::with([
+                'marca:id,nombre',
+                'categoria:id,nombre',
+                'tipounidad:id,nombre',
+                'inventarios' => function($q) use ($almacenId) {
+                    $q->select('id', 'producto_id', 'almacen_id', 'stock')
+                      ->where('almacen_id', $almacenId)
+                      ->with('almacen:id,nombre');
+                },
+            ]);
+            $query->withSum(['inventarios as stock_total' => function($q) use ($almacenId) {
+                $q->where('almacen_id', $almacenId);
+            }], 'stock');
+        } else {
+            $query = Producto::with([
+                'marca:id,nombre',
+                'categoria:id,nombre',
+                'tipounidad:id,nombre',
+                'inventarios' => function($q) {
+                    $q->select('id', 'producto_id', 'almacen_id', 'stock')
+                      ->with('almacen:id,nombre');
+                },
+            ]);
+            $query->withSum('inventarios as stock_total', 'stock');
+        }
 
         // Búsqueda
         if ($busqueda) {
@@ -77,17 +166,38 @@ class ProductoController extends Controller
             $query->where('categoria_id', $categoriaId);
         }
 
-        if ($stock === 'low') {
-            $query->whereRaw('(SELECT COALESCE(SUM(stock), 0) FROM inventario_almacenes ia WHERE ia.producto_id = productos.id) <= 10');
-        } elseif ($stock === 'normal') {
-            $query->whereRaw('(SELECT COALESCE(SUM(stock), 0) FROM inventario_almacenes ia WHERE ia.producto_id = productos.id) > 10');
+        if ($almacenId !== 'all' && is_numeric($almacenId)) {
+            $query->whereHas('inventarios', function($q) use ($almacenId) {
+                $q->where('almacen_id', $almacenId);
+            });
+
+            if ($stock === 'low') {
+                $query->whereRaw('(SELECT COALESCE(SUM(stock), 0) FROM inventario_almacenes ia WHERE ia.producto_id = productos.id AND ia.almacen_id = ?) <= 10', [$almacenId]);
+            } elseif ($stock === 'normal') {
+                $query->whereRaw('(SELECT COALESCE(SUM(stock), 0) FROM inventario_almacenes ia WHERE ia.producto_id = productos.id AND ia.almacen_id = ?) > 10', [$almacenId]);
+            }
+        } else {
+            if ($stock === 'low') {
+                $query->whereRaw('(SELECT COALESCE(SUM(stock), 0) FROM inventario_almacenes ia WHERE ia.producto_id = productos.id) <= 10');
+            } elseif ($stock === 'normal') {
+                $query->whereRaw('(SELECT COALESCE(SUM(stock), 0) FROM inventario_almacenes ia WHERE ia.producto_id = productos.id) > 10');
+            }
         }
 
-        // Ordenamiento
+        return $query;
+    }
+
+    private function applySorting($query, Request $request)
+    {
+        $sort = $request->get('sort', 'nombre');
+        $direction = $request->get('direction', 'asc');
+        
+        if (!in_array($direction, ['asc', 'desc'])) $direction = 'asc';
+
         switch ($sort) {
             case 'categoria':
                 $query->join('categorias', 'productos.categoria_id', '=', 'categorias.id')
-                      ->select('productos.*') // Evitar colisión de IDs
+                      ->select('productos.*')
                       ->orderBy('categorias.nombre', $direction);
                 break;
             case 'stock_total':
@@ -96,45 +206,46 @@ class ProductoController extends Controller
             case 'precio_venta':
             case 'nombre':
             case 'estado':
-                $query->orderBy($sort, $direction);
+                $query->orderBy('productos.' . $sort, $direction);
                 break;
             default:
-                $query->latest();
+                $query->latest('productos.created_at');
                 break;
         }
 
-        $productos = $query->paginate($perPage);
-
-        // Estadísticas para el footer (Totales globales de toda la tabla productos)
-        $totalStockGlobal = DB::table('inventario_almacenes')->sum('stock');
-        $productosActivos = Producto::where('estado', 1)->count();
-        
-        // Conteo de bajo stock global (suma de inventarios por producto <= 10)
-        $bajoStockCount = Producto::join('inventario_almacenes', 'productos.id', '=', 'inventario_almacenes.producto_id')
-            ->select('productos.id')
-            ->groupBy('productos.id')
-            ->havingRaw('SUM(inventario_almacenes.stock) <= 10')
-            ->get()
-            ->count();
-
-        $almacenes = Almacen::where('estado', true)->get();
-        $categorias = Categoria::orderBy('nombre')->get();
-
-        if ($request->ajax()) {
-            return view('admin.producto.index', compact(
-                'productos', 'busqueda', 'perPage', 'almacenes', 'categorias',
-                'sort', 'direction', 'estado', 'categoriaId', 'stock',
-                'totalStockGlobal', 'productosActivos', 'bajoStockCount'
-            ));
-        }
-
-        return view('admin.producto.index', compact(
-            'productos', 'busqueda', 'perPage', 'almacenes', 'categorias',
-            'sort', 'direction', 'estado', 'categoriaId', 'stock',
-            'totalStockGlobal', 'productosActivos', 'bajoStockCount'
-        ));
+        return $query;
     }
  
+    public function getDetalle($id)
+    {
+        $producto = Producto::with([
+            'marca:id,nombre',
+            'categoria:id,nombre',
+            'tipounidad:id,nombre',
+            'inventarios' => function($q) {
+                $q->select('id', 'producto_id', 'almacen_id', 'stock')
+                  ->with('almacen:id,nombre');
+            },
+        ])->findOrFail($id);
+
+        return response()->json([
+            'id'            => $producto->id,
+            'nombre'        => $producto->nombre,
+            'codigo'        => $producto->codigo,
+            'descripcion'   => $producto->descripcion,
+            'precio_venta'  => $producto->precio_venta,
+            'precio_compra' => $producto->precio_compra,
+            'categoria'     => $producto->categoria?->nombre,
+            'marca'         => $producto->marca?->nombre,
+            'tipounidad'    => $producto->tipounidad?->nombre,
+            'estado'        => $producto->estado,
+            'inventarios'   => $producto->inventarios->map(fn($inv) => [
+                'almacen' => $inv->almacen?->nombre,
+                'stock'   => $inv->stock,
+            ]),
+        ]);
+    }
+
     public function create()
     {
         $marcas = Marca::all();
@@ -303,7 +414,7 @@ class ProductoController extends Controller
         $sort      = $request->get('sort', 'created_at');
         $direction = $request->get('direction', 'desc');
 
-        if (!in_array($perPage, [5, 10, 15, 20, 25])) $perPage = 10;
+        $perPageValue = $perPage === 'all' ? 1000000 : (in_array((int)$perPage, [5, 10, 15, 20, 25]) ? (int)$perPage : 10);
         if (!in_array($direction, ['asc', 'desc'])) $direction = 'desc';
 
         $query = \App\Models\AjusteStock::with(['producto', 'almacen', 'user']);
@@ -338,7 +449,7 @@ class ProductoController extends Controller
                 break;
         }
 
-        $ajustes = $query->paginate($perPage);
+        $ajustes = $query->paginate($perPageValue);
 
         // Estadísticas para el footer
         $totalAjustes = \App\Models\AjusteStock::count();
@@ -417,29 +528,33 @@ class ProductoController extends Controller
             $includeStock = filter_var($request->input('includeStock', true), FILTER_VALIDATE_BOOLEAN);
             $includeAllDetails = filter_var($request->input('includeAllDetails', true), FILTER_VALIDATE_BOOLEAN);
 
+            $almacenId = $request->input('almacen_id', 'all');
+
             $almacenes = $includeStock
-                ? Almacen::where('estado', true)->orderBy('nombre')->get(['id', 'nombre'])
+                ? ($almacenId !== 'all' && is_numeric($almacenId)
+                    ? Almacen::where('id', $almacenId)->get(['id', 'nombre'])
+                    : Almacen::where('estado', true)->orderBy('nombre')->get(['id', 'nombre']))
                 : collect();
             
             if (!empty($productIds)) {
-                $productos = Producto::with([
+                $query = Producto::with([
                         'marca',
                         'categoria',
                         'tipounidad',
                         'inventarios:id,producto_id,almacen_id,stock',
-                    ])
-                    ->withSum('inventarios as stock_total', 'stock')
-                    ->whereIn('id', $productIds)
-                    ->get();
+                    ]);
+                if ($almacenId !== 'all' && is_numeric($almacenId)) {
+                    $query->withSum(['inventarios as stock_total' => function($q) use ($almacenId) {
+                        $q->where('almacen_id', $almacenId);
+                    }], 'stock');
+                } else {
+                    $query->withSum('inventarios as stock_total', 'stock');
+                }
+                $productos = $query->whereIn('id', $productIds)->get();
             } else {
-                $productos = Producto::with([
-                        'marca',
-                        'categoria',
-                        'tipounidad',
-                        'inventarios:id,producto_id,almacen_id,stock',
-                    ])
-                    ->withSum('inventarios as stock_total', 'stock')
-                    ->get();
+                $query = $this->buildProductQuery($request);
+                $query = $this->applySorting($query, $request);
+                $productos = $query->get();
             }
             $filename = 'productos_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
             return Excel::download(
@@ -455,42 +570,70 @@ class ProductoController extends Controller
     public function exportPdf(Request $request)
     {
         try {
-            $productIds = $request->input('product_ids', []);
-            
-            // Convertir strings a booleanos
-            $includePrices = filter_var($request->input('includePrices', true), FILTER_VALIDATE_BOOLEAN);
-            $includeStock = filter_var($request->input('includeStock', true), FILTER_VALIDATE_BOOLEAN);
-            $includeAllDetails = filter_var($request->input('includeAllDetails', true), FILTER_VALIDATE_BOOLEAN);
+            // Aumentar límites para el generador de PDF
+            set_time_limit(180);
+            ini_set('memory_limit', '512M');
 
+            $productIds = $request->input('product_ids', []);
+            $includePrices      = filter_var($request->input('includePrices', true),      FILTER_VALIDATE_BOOLEAN);
+            $includeStock       = filter_var($request->input('includeStock', true),       FILTER_VALIDATE_BOOLEAN);
+            $includeAllDetails  = filter_var($request->input('includeAllDetails', true),  FILTER_VALIDATE_BOOLEAN);
+            $almacenId          = $request->input('almacen_id', 'all');
+
+            // Almacenes a mostrar en columnas de stock
             $almacenes = $includeStock
-                ? Almacen::where('estado', true)->orderBy('nombre')->get(['id', 'nombre'])
+                ? ($almacenId !== 'all' && is_numeric($almacenId)
+                    ? Almacen::where('id', $almacenId)->get(['id', 'nombre'])
+                    : Almacen::where('estado', true)->orderBy('nombre')->get(['id', 'nombre']))
                 : collect();
-            
+
+            // Construir query optimizada (solo columnas necesarias para PDF)
             if (!empty($productIds)) {
-                $productos = Producto::with([
-                        'marca',
-                        'categoria',
-                        'tipounidad',
-                        'inventarios:id,producto_id,almacen_id,stock',
-                    ])
-                    ->withSum('inventarios as stock_total', 'stock')
-                    ->whereIn('id', $productIds)
-                    ->get();
+                $query = Producto::select('id', 'codigo', 'nombre', 'precio_compra', 'precio_venta',
+                                         'categoria_id', 'marca_id', 'tipounidad_id', 'estado');
+                if ($includeAllDetails) {
+                    $query->with([
+                        'categoria:id,nombre',
+                        'marca:id,nombre',
+                        'tipounidad:id,nombre',
+                    ]);
+                }
+                if ($includeStock) {
+                    if ($almacenId !== 'all' && is_numeric($almacenId)) {
+                        $query->with(['inventarios' => fn($q) => $q
+                            ->select('id', 'producto_id', 'almacen_id', 'stock')
+                            ->where('almacen_id', $almacenId)]);
+                        $query->withSum(['inventarios as stock_total' => fn($q) => $q->where('almacen_id', $almacenId)], 'stock');
+                    } else {
+                        $query->with(['inventarios' => fn($q) => $q->select('id', 'producto_id', 'almacen_id', 'stock')]);
+                        $query->withSum('inventarios as stock_total', 'stock');
+                    }
+                }
+                $productos = $query->whereIn('id', $productIds)->get();
             } else {
-                $productos = Producto::with([
-                        'marca',
-                        'categoria',
-                        'tipounidad',
-                        'inventarios:id,producto_id,almacen_id,stock',
-                    ])
-                    ->withSum('inventarios as stock_total', 'stock')
-                    ->get();
+                $query = $this->buildProductQuery($request);
+                $query = $this->applySorting($query, $request);
+
+                // Seguridad: limitar PDF a 500 filas para evitar agotamiento de memoria
+                $totalCount = $query->count();
+                if ($totalCount > 500) {
+                    return back()->with('error',
+                        "El reporte PDF está limitado a 500 registros para evitar problemas de rendimiento. " .
+                        "Actualmente hay {$totalCount} registros. Usa los filtros para reducir el resultado, o selecciona productos específicos para exportar."
+                    );
+                }
+
+                $productos = $query->get();
             }
 
-            $pdf = Pdf::loadview('admin.producto.pdf', compact('productos', 'almacenes', 'includePrices', 'includeStock', 'includeAllDetails'))
-                ->setPaper('a4', 'landscape');
+            $pdf = Pdf::loadView('admin.producto.pdf', compact(
+                'productos', 'almacenes', 'includePrices', 'includeStock', 'includeAllDetails'
+            ))->setPaper('a4', 'landscape');
 
-            return $pdf->download('reporte-productos_'.now()->format('Y-m-d_H-i-s').'.pdf');
+            $pdf->getDomPDF()->set_option('isPhpEnabled', false);
+            $pdf->getDomPDF()->set_option('isRemoteEnabled', false);
+
+            return $pdf->download('reporte-productos_' . now()->format('Y-m-d_H-i-s') . '.pdf');
 
         } catch (\Exception $e) {
             return back()->with('error', 'Error al exportar PDF: ' . $e->getMessage());

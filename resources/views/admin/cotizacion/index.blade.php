@@ -211,6 +211,7 @@
                                     @foreach([5, 10, 15, 20, 25] as $option)
                                         <option value="{{ $option }}" {{ ($perPage ?? 10) == $option ? 'selected' : '' }}>{{ $option }}</option>
                                     @endforeach
+                                    <option value="all" {{ ($perPage ?? 10) == 'all' ? 'selected' : '' }}>Todos</option>
                                 </select>
                             </div>
                         </div>

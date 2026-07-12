@@ -61,6 +61,7 @@
                                             {{ $option }}
                                         </option>
                                     @endforeach
+                                    <option value="all" {{ ($perPage ?? 10) == 'all' ? 'selected' : '' }}>Todos</option>
                                 </select>
                             </div>
                         </div>

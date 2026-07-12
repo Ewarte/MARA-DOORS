@@ -58,6 +58,8 @@ Route::prefix('admin')->group(function () {
             // Exportacion
             Route::post('/export-excel', [ProductoController::class, 'exportExcel'])->name('export.excel');
             Route::post('/export-pdf', [ProductoController::class, 'exportPdf'])->name('export.pdf');
+            // Detalle AJAX (modal dinámico)
+            Route::get('/{id}/detalle', [ProductoController::class, 'getDetalle'])->name('detalle');
         });
         // --- Gestion de Ventas ---
         Route::prefix('ventas')->name('ventas.')->group(function () {

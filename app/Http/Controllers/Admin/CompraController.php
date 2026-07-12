@@ -90,7 +90,7 @@ class CompraController extends Controller
         $direction = $request->get('direction', 'desc'); // Descendente por defecto
 
         // Validar per_page y direction
-        if (!in_array($perPage, [5, 10, 15, 20, 25])) $perPage = 10;
+        $perPageValue = $perPage === 'all' ? 1000000 : (in_array((int)$perPage, [5, 10, 15, 20, 25]) ? (int)$perPage : 10);
         if (!in_array($direction, ['asc', 'desc'])) $direction = 'desc';
 
         $query = Compra::with(['comprobante', 'proveedor.persona', 'user'])
@@ -145,7 +145,7 @@ class CompraController extends Controller
                 break;
         }
 
-        $compras = $query->paginate($perPage);
+        $compras = $query->paginate($perPageValue);
 
         // Estadísticas para el footer - Filtradas por almacén
         $statsQuery = Compra::where('estado', 1);
