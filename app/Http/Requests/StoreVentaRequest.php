@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Models\Producto;
 
 class StoreVentaRequest extends FormRequest
 {
@@ -83,10 +84,21 @@ class StoreVentaRequest extends FormRequest
 
     protected function prepareForValidation()
     {
+        $precios = array_map(fn($v) => floatval($v ?? 0), $this->arrayprecioventa ?? []);
+
+        if (!$this->user()->can('editar-venta') && !empty($this->arrayidproducto)) {
+            $productos = Producto::whereIn('id', $this->arrayidproducto)->pluck('precio_venta', 'id');
+            foreach ($this->arrayidproducto as $index => $productoId) {
+                if (isset($productos[$productoId])) {
+                    $precios[$index] = (float) $productos[$productoId];
+                }
+            }
+        }
+
         // Convertir valores a números y limpiar
         $this->merge([
             'arraycantidad' => array_map(fn($v) => floatval($v ?? 0), $this->arraycantidad ?? []),
-            'arrayprecioventa' => array_map(fn($v) => floatval($v ?? 0), $this->arrayprecioventa ?? []),
+            'arrayprecioventa' => $precios,
             'arraydescuento' => array_map(fn($v) => floatval($v ?? 0), $this->arraydescuento ?? []),
             'total' => floatval($this->total ?? 0),
             'monto_pagado' => floatval($this->monto_pagado ?? 0),
@@ -108,8 +120,15 @@ class StoreVentaRequest extends FormRequest
                     
                     if ($descuento > $subtotal) {
                         $validator->errors()->add(
-                            "arraydescuento.{$index}", 
-                            "El descuento no puede ser mayor al subtotal del producto"
+                            "arraydescuento.{$index}",
+                            "El descuento total no puede ser mayor al subtotal del producto"
+                        );
+                    }
+
+                    if ($cantidad > 0 && ($descuento / $cantidad) > $precio) {
+                        $validator->errors()->add(
+                            "arraydescuento.{$index}",
+                            "El descuento por unidad no puede ser mayor al precio de venta"
                         );
                     }
                 }

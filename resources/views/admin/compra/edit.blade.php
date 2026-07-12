@@ -1,4 +1,4 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 
 @section('title', 'Editar compra')
 
@@ -139,15 +139,19 @@
                     <div class="row g-2 align-items-end">
                         <div class="col-md-2">
                             <label class="form-label">Cantidad</label>
-                            <input type="number" id="sel_cantidad" class="form-control form-control-sm" value="1.00" step="0.01">
+                            <input type="text" id="sel_cantidad" class="form-control form-control-sm" value="1.00" inputmode="decimal" autocomplete="off">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Costo Compra (Bs.)</label>
-                            <input type="number" id="sel_costo" class="form-control form-control-sm" step="0.01">
+                            <input type="number" id="sel_costo" class="form-control form-control-sm" min="0" step="any" inputmode="decimal">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Precio Venta (Bs.)</label>
-                            <input type="number" id="sel_venta" class="form-control form-control-sm" step="0.01">
+                            @php
+                                $canEditPrecio = auth()->user()->hasRole(['ADMINISTRADOR', 'Administrador', 'Admin', 'Super Admin']) || auth()->user()->can('editar-precio-producto');
+                            @endphp
+                            <input type="number" id="sel_venta" class="form-control form-control-sm {{ $canEditPrecio ? '' : 'bg-light' }}" min="0" step="any" inputmode="decimal"
+                                @if(!$canEditPrecio) readonly @endif>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">Código</label>
@@ -217,15 +221,32 @@
 @endsection
 
 @push('js')
+    @include('admin.layouts.partials.number-input-helpers')
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta3/dist/js/bootstrap-select.min.js"></script>
     <script>
         $(document).ready(function() {
+            const NI = window.MaraNumberInputs;
+            const CAN_EDIT_PRECIO = {{ json_encode(auth()->user()->hasRole(['ADMINISTRADOR', 'Administrador', 'Admin', 'Super Admin']) || auth()->user()->can('editar-precio-producto')) }};
             const PRODUCTOR_RAW = '{!! addslashes(json_encode($productos)) !!}';
             const PRODUCTOS = JSON.parse(PRODUCTOR_RAW);
             const EXISTENTES = @json($compra->detalles->load('producto'));
             let itemsAgregados = new Set();
             let selectedItem = null;
             let rowCount = 0;
+
+            function enhanceLineInputs($scope) {
+                if (CAN_EDIT_PRECIO) {
+                    NI.enhanceScope($scope, '.t-qty', ['.t-cost', '.t-sell']);
+                } else {
+                    NI.enhanceScope($scope, '.t-qty', ['.t-cost']);
+                }
+            }
+
+            NI.enhanceQty($('#sel_cantidad'));
+            NI.enhanceMoney($('#sel_costo'));
+            if (CAN_EDIT_PRECIO) {
+                NI.enhanceMoney($('#sel_venta'));
+            }
 
             $('.selectpicker').selectpicker();
 
@@ -243,7 +264,7 @@
 
             // --- LOAD DATA ---
             EXISTENTES.forEach(det => {
-                addItem(det.producto, parseFloat(det.cantidad), parseFloat(det.precio_compra), parseFloat(det.precio_venta));
+                addItem(det.producto, NI.qtyValue(det.cantidad) || NI.toNumber(det.cantidad), parseFloat(det.precio_compra), parseFloat(det.precio_venta));
             });
 
             // --- SEARCH LOGIC ---
@@ -270,8 +291,8 @@
                         selectedItem = p;
                         $('#sel_name').text(p.nombre);
                         $('#sel_codigo').val(p.codigo);
-                        $('#sel_costo').val(parseFloat(p.precio_compra).toFixed(2));
-                        $('#sel_venta').val(parseFloat(p.precio_venta).toFixed(2));
+                        $('#sel_costo').val(NI.formatMoney(p.precio_compra));
+                        $('#sel_venta').val(NI.formatMoney(p.precio_venta));
                         $('#sel_cantidad').val('1.00').focus();
                         updateMargenBadge();
                         $('#selection_card').slideDown(); dropdown.hide(); $('#producto_search').val('');
@@ -298,7 +319,7 @@
             // --- TABLE LOGIC ---
             $('#btn_add_item').on('click', function() {
                 if (!selectedItem) return;
-                const qty = parseFloat($('#sel_cantidad').val()) || 0;
+                const qty = NI.qtyValue($('#sel_cantidad').val());
                 const costo = parseFloat($('#sel_costo').val()) || 0;
                 const venta = parseFloat($('#sel_venta').val()) || 0;
                 if (qty <= 0 || costo <= 0) { Swal.fire("Error", "Complete los campos correctamente", "warning"); return; }
@@ -315,6 +336,9 @@
                 if (margen >= 30) mClass = 'margen-alto';
                 else if (margen >= 10) mClass = 'margen-medio';
 
+                const sellReadonly = CAN_EDIT_PRECIO ? '' : 'readonly';
+                const sellClass = CAN_EDIT_PRECIO ? '' : 'bg-light';
+
                 const row = `
                     <tr id="row_${rowCount}" data-id="${p.id}">
                         <td class="row-index">${rowCount}</td>
@@ -323,9 +347,9 @@
                             <div class="small text-muted">${p.codigo}</div>
                             <input type="hidden" name="arrayidproducto[]" value="${p.id}">
                         </td>
-                        <td><input type="number" name="arraycantidad[]" class="form-control form-control-sm t-qty" value="${qty.toFixed(2)}" step="0.01"></td>
-                        <td><input type="number" name="arraypreciocompra[]" class="form-control form-control-sm t-cost" value="${costo.toFixed(2)}" step="0.01"></td>
-                        <td><input type="number" name="arrayprecioventa[]" class="form-control form-control-sm t-sell" value="${venta.toFixed(2)}" step="0.01"></td>
+                        <td><input type="text" name="arraycantidad[]" class="form-control form-control-sm t-qty" value="${NI.formatQty(qty)}" inputmode="decimal" autocomplete="off"></td>
+                        <td><input type="number" name="arraypreciocompra[]" class="form-control form-control-sm t-cost" value="${NI.formatMoney(costo)}"></td>
+                        <td><input type="number" name="arrayprecioventa[]" class="form-control form-control-sm t-sell ${sellClass}" value="${NI.formatMoney(venta)}" ${sellReadonly}></td>
                         <td class="text-center"><span class="margen-badge ${mClass} t-margen">${margen}%</span></td>
                         <td class="text-end fw-bold">Bs. <span class="t-sub">${sub}</span></td>
                         <td class="text-center">
@@ -333,13 +357,17 @@
                         </td>
                     </tr>
                 `;
-                $('#tabla_detalle tbody').append(row);
+                const $row = $(row);
+                $('#tabla_detalle tbody').append($row);
+                enhanceLineInputs($row);
                 updateTotals();
             }
 
             $(document).on('input', '.t-qty, .t-cost, .t-sell', function() {
                 const tr = $(this).closest('tr');
-                const q = parseFloat(tr.find('.t-qty').val()) || 0, c = parseFloat(tr.find('.t-cost').val()) || 0, v = parseFloat(tr.find('.t-sell').val()) || 0;
+                const q = NI.qtyValue(tr.find('.t-qty').val());
+                const c = NI.moneyValue(tr.find('.t-cost').val());
+                const v = NI.moneyValue(tr.find('.t-sell').val());
                 tr.find('.t-sub').text((q * c).toFixed(2));
                 const m = c > 0 ? ((v - c) / c * 100).toFixed(2) : 0;
                 const badge = tr.find('.t-margen').text(m + '%');

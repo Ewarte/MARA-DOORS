@@ -148,18 +148,22 @@
                                     <label class="form-label">Precio Unitario (Bs.)</label>
                                     <div class="input-group input-group-sm">
                                         <span class="input-group-text bg-light border-end-0">Bs.</span>
-                                        <input type="number" id="sel_precio" class="form-control border-start-0" step="0.01">
+                                        @php
+                                            $canEditPrecio = auth()->user()->hasRole(['ADMINISTRADOR', 'Administrador', 'Admin', 'Super Admin']) || auth()->user()->can('editar-precio-producto');
+                                        @endphp
+                                        <input type="number" id="sel_precio" class="form-control border-start-0 {{ $canEditPrecio ? '' : 'bg-light' }}" min="0" step="any" inputmode="decimal"
+                                            @if(!$canEditPrecio) readonly @endif>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Cantidad</label>
-                                    <input type="number" id="sel_cantidad" class="form-control form-control-sm" value="1.000" step="0.001">
+                                    <input type="number" id="sel_cantidad" class="form-control form-control-sm" value="1" min="0.001" step="any" inputmode="decimal">
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label">Descuento (%)</label>
+                                    <label class="form-label">Descuento (Bs./u)</label>
                                     <div class="input-group input-group-sm">
-                                        <input type="number" id="sel_descuento_porc" class="form-control border-end-0" value="0" step="0.01">
-                                        <span class="input-group-text bg-light border-start-0">%</span>
+                                        <span class="input-group-text bg-light border-end-0">Bs.</span>
+                                        <input type="number" id="sel_descuento_unit" class="form-control border-start-0" value="0" min="0" step="any" inputmode="decimal">
                                     </div>
                                 </div>
                                 <div class="col-md-3">
@@ -178,7 +182,7 @@
                                         <th class="py-3">Descripción del Producto</th>
                                         <th width="12%" class="text-center py-3">Cantidad</th>
                                         <th width="15%" class="text-end py-3">Precio Unit.</th>
-                                        <th width="12%" class="text-end py-3">Desc.</th>
+                                        <th width="12%" class="text-end py-3">Desc./u</th>
                                         <th width="18%" class="text-end py-3">Subtotal</th>
                                         <th width="5%" class="text-center py-3"></th>
                                     </tr>
@@ -224,14 +228,62 @@
 @endsection
 
 @push('js')
+    @include('admin.layouts.partials.number-input-helpers')
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta3/dist/js/bootstrap-select.min.js"></script>
     <script>
         $(document).ready(function() {
+            const NI = window.MaraNumberInputs;
             const PRODUCTOS = JSON.parse(@json($productos->toJson()));
             const CLIENTES = @json($clientes);
             const PROVEEDORES = @json($proveedores);
+            const CAN_EDIT_PRECIO = {{ json_encode(auth()->user()->hasRole(['ADMINISTRADOR', 'Administrador', 'Admin', 'Super Admin']) || auth()->user()->can('editar-precio-producto')) }};
             let selectedItem = null;
             let rowCount = 0;
+
+            function formatDisplayMoney(value) {
+                return NI.formatMoney(value);
+            }
+
+            function enhanceLineInputs($scope) {
+                if (CAN_EDIT_PRECIO) {
+                    NI.enhanceScope($scope, '.t-qty', ['.t-price', '.t-desc-unit']);
+                } else {
+                    NI.enhanceScope($scope, '.t-qty', ['.t-desc-unit']);
+                }
+            }
+
+            NI.enhanceQty($('#sel_cantidad'));
+            if (CAN_EDIT_PRECIO) {
+                NI.enhanceMoney($('#sel_precio'));
+            }
+            NI.enhanceMoney($('#sel_descuento_unit'));
+
+            function calcLineTotals(qty, price, descUnit) {
+                const q = NI.parseQty(qty);
+                const p = parseFloat(price) || 0;
+                const du = Math.max(0, parseFloat(descUnit) || 0);
+                const safeDescUnit = Math.min(du, p);
+                const descTotal = safeDescUnit * q;
+                const sub = (q * p) - descTotal;
+                return { descUnit: safeDescUnit, descTotal, sub };
+            }
+
+            function updateRowSubtotal(tr) {
+                const qtyInput = tr.find('.t-qty');
+                const qty = NI.parseQty(qtyInput.val());
+                if (!qtyInput.is(':focus')) {
+                    qtyInput.val(NI.formatQty(qty));
+                }
+                const price = parseFloat(tr.find('.t-price').val()) || 0;
+                const descUnitInput = tr.find('.t-desc-unit');
+                const descUnit = parseFloat(descUnitInput.val()) || 0;
+                const { descUnit: safeDescUnit, descTotal, sub } = calcLineTotals(qty, price, descUnit);
+                if (!descUnitInput.is(':focus')) {
+                    descUnitInput.val(formatDisplayMoney(safeDescUnit));
+                }
+                tr.find('.t-desc-hidden').val(descTotal.toFixed(2));
+                tr.find('.t-sub').text(sub.toFixed(2));
+            }
 
             // --- TIPO DE COTIZACION TOGGLE ---
             $('#tipo_cotizacion').on('change', function() {
@@ -439,23 +491,26 @@
 
             $('#btn_add_item').on('click', function() {
                 if (!selectedItem) return;
-                const qty = parseFloat($('#sel_cantidad').val()) || 0;
-                const price = parseFloat($('#sel_precio').val()) || 0;
-                const desc_porc = parseFloat($('#sel_descuento_porc').val()) || 0;
+                const qty = NI.parseQty($('#sel_cantidad').val());
+                const price = CAN_EDIT_PRECIO
+                    ? (parseFloat($('#sel_precio').val()) || 0)
+                    : (parseFloat(selectedItem.precio_venta) || 0);
+                const descUnit = parseFloat($('#sel_descuento_unit').val()) || 0;
 
                 if (qty <= 0) { Swal.fire("Atención", "Especifique una cantidad válida", "warning"); return; }
 
-                addItem(selectedItem, qty, price, desc_porc);
+                addItem(selectedItem, qty, price, descUnit);
                 $('#selection_card').hide();
                 selectedItem = null;
+                $('#sel_descuento_unit').val('0');
                 $('#producto_search').focus();
             });
 
-            function addItem(p, qty, price, desc_porc) {
+            function addItem(p, qty, price, descUnit) {
                 rowCount++;
-                const subTotalBruto = qty * price;
-                const descMonto = subTotalBruto * (desc_porc / 100);
-                const subValue = (subTotalBruto - descMonto);
+                const { descUnit: safeDescUnit, descTotal, sub } = calcLineTotals(qty, price, descUnit);
+                const priceReadonly = CAN_EDIT_PRECIO ? '' : 'readonly';
+                const priceClass = CAN_EDIT_PRECIO ? '' : 'bg-light';
 
                 const row = `
                     <tr id="row_${rowCount}">
@@ -466,34 +521,37 @@
                             <input type="hidden" name="arrayidproducto[]" value="${p.id}">
                         </td>
                         <td class="text-center">
-                            <input type="number" name="arraycantidad[]" class="form-control form-control-sm text-center t-qty" value="${qty.toFixed(3)}" step="0.001">
+                            <input type="number" name="arraycantidad[]" class="form-control form-control-sm text-center t-qty" value="${NI.formatQty(qty)}" min="0.001" step="any" inputmode="decimal">
                         </td>
                         <td class="text-end">
-                            <input type="number" name="arraypreciounitario[]" class="form-control form-control-sm text-end t-price" value="${price.toFixed(2)}" step="0.01">
+                            <input type="number" name="arraypreciounitario[]" class="form-control form-control-sm text-end t-price ${priceClass}" value="${formatDisplayMoney(price)}" ${priceReadonly}>
                         </td>
                         <td class="text-end">
-                            <input type="number" name="arraydescuento[]" class="form-control form-control-sm text-end t-desc" value="${descMonto.toFixed(2)}" step="0.01">
+                            <input type="number" class="form-control form-control-sm text-end t-desc-unit" value="${formatDisplayMoney(safeDescUnit)}" min="0" title="Descuento por unidad (Bs.)">
+                            <input type="hidden" name="arraydescuento[]" class="t-desc-hidden" value="${descTotal.toFixed(2)}">
                         </td>
                         <td class="text-end fw-bold">
-                            <span class="text-dark">Bs. <span class="t-sub">${subValue.toFixed(2)}</span></span>
+                            <span class="text-dark">Bs. <span class="t-sub">${sub.toFixed(2)}</span></span>
                         </td>
                         <td class="text-center">
                             <button type="button" class="btn btn-link text-danger p-0 delete-row" title="Quitar item"><i class="fas fa-times-circle fs-5"></i></button>
                         </td>
                     </tr>
                 `;
-                $('#tabla_detalle tbody').append(row);
+                const $row = $(row);
+                $('#tabla_detalle tbody').append($row);
+                enhanceLineInputs($row);
                 updateTotals();
                 checkVisibility();
             }
 
-            $(document).on('input', '.t-qty, .t-price, .t-desc', function() {
-                const tr = $(this).closest('tr');
-                const q = parseFloat(tr.find('.t-qty').val()) || 0;
-                const p = parseFloat(tr.find('.t-price').val()) || 0;
-                const d = parseFloat(tr.find('.t-desc').val()) || 0;
-                const sub = (q * p) - d;
-                tr.find('.t-sub').text(sub.toFixed(2));
+            $(document).on('input', '.t-qty, .t-desc-unit' + (CAN_EDIT_PRECIO ? ', .t-price' : ''), function() {
+                updateRowSubtotal($(this).closest('tr'));
+                updateTotals();
+            });
+
+            $(document).on('blur', '.t-qty, .t-desc-unit', function() {
+                updateRowSubtotal($(this).closest('tr'));
                 updateTotals();
             });
 
@@ -541,8 +599,15 @@
                 });
             });
 
+            $('#cotizacionForm').on('submit', function() {
+                $('#tabla_detalle tbody tr').each(function() {
+                    updateRowSubtotal($(this));
+                });
+                updateTotals();
+            });
+
             // Enter en cantidad para añadir
-            $('#sel_cantidad, #sel_precio, #sel_descuento_porc').on('keypress', function(e) {
+            $('#sel_cantidad, #sel_precio, #sel_descuento_unit').on('keypress', function(e) {
                 if (e.which == 13) {
                     $('#btn_add_item').click();
                     return false;

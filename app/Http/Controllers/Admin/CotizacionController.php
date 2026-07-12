@@ -105,7 +105,35 @@ class CotizacionController extends Controller
                 return back()->withInput()->with('error', 'Seleccione solo Cliente o Proveedor (no ambos).');
             }
 
-            $this->cotizacionService->crearCotizacion($request->all(), auth()->id());
+            $payload = $request->all();
+            if (!empty($payload['arrayidproducto'])) {
+                foreach ($payload['arrayidproducto'] as $index => $productoId) {
+                    $cantidad = floatval($payload['arraycantidad'][$index] ?? 0);
+                    $precio = floatval($payload['arraypreciounitario'][$index] ?? 0);
+                    $descuento = floatval($payload['arraydescuento'][$index] ?? 0);
+                    $subtotal = $cantidad * $precio;
+
+                    if ($descuento > $subtotal) {
+                        return back()->withInput()->with('error', 'El descuento total no puede ser mayor al subtotal de un producto.');
+                    }
+                    if ($cantidad > 0 && ($descuento / $cantidad) > $precio) {
+                        return back()->withInput()->with('error', 'El descuento por unidad no puede ser mayor al precio unitario.');
+                    }
+                }
+            }
+
+            if (!auth()->user()->can('editar-cotizacion') && !empty($payload['arrayidproducto'])) {
+                $productos = Producto::whereIn('id', $payload['arrayidproducto'])->pluck('precio_venta', 'id');
+                $precios = $payload['arraypreciounitario'] ?? [];
+                foreach ($payload['arrayidproducto'] as $index => $productoId) {
+                    if (isset($productos[$productoId])) {
+                        $precios[$index] = (float) $productos[$productoId];
+                    }
+                }
+                $payload['arraypreciounitario'] = $precios;
+            }
+
+            $this->cotizacionService->crearCotizacion($payload, auth()->id());
             return redirect()->route('cotizaciones.index')->with('success', 'Cotización creada exitosamente');
         } catch (Exception $e) {
             return back()->withInput()->with('error', 'Error: ' . $e->getMessage());

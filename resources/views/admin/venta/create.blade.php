@@ -171,11 +171,15 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Precio Venta (Bs.)</label>
-                            <input type="number" id="sel_precio" class="form-control form-control-sm" step="0.01">
+                            @php
+                                $canEditPrecio = auth()->user()->hasRole(['ADMINISTRADOR', 'Administrador', 'Admin', 'Super Admin']) || auth()->user()->can('editar-precio-producto');
+                            @endphp
+                            <input type="number" id="sel_precio" class="form-control form-control-sm input-step-money {{ $canEditPrecio ? '' : 'bg-light' }}" min="0"
+                                @if(!$canEditPrecio) readonly @endif>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Cantidad</label>
-                            <input type="number" id="sel_cantidad" class="form-control form-control-sm" value="1.000" step="0.001">
+                            <input type="text" id="sel_cantidad" class="form-control form-control-sm" value="1.00" inputmode="decimal" autocomplete="off">
                         </div>
                         <div class="col-md-3">
                             <button type="button" id="btn_add_item" class="btn btn-primary btn-sm w-100 h-32"><i class="fas fa-plus me-1"></i> Añadir a Tabla</button>
@@ -191,7 +195,7 @@
                                 <th>Producto</th>
                                 <th width="12%">Cantidad</th>
                                 <th width="12%">P. Venta</th>
-                                <th width="12%">Descuento</th>
+                                <th width="12%">Desc./u</th>
                                 <th width="15%">Subtotal</th>
                                 <th width="5%"></th>
                             </tr>
@@ -278,11 +282,14 @@
 @endsection
 
 @push('js')
+    @include('admin.layouts.partials.number-input-helpers')
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta3/dist/js/bootstrap-select.min.js"></script>
     <script>
         $(document).ready(function() {
+            const NI = window.MaraNumberInputs;
             const PRODUCTOS = @json($productos);
             const CLIENTES = @json($clientes);
+            const CAN_EDIT_PRECIO = {{ json_encode(auth()->user()->hasRole(['ADMINISTRADOR', 'Administrador', 'Admin', 'Super Admin']) || auth()->user()->can('editar-precio-producto')) }};
             let itemsAgregados = new Set();
             let selectedItem = null;
             let rowCount = 0;
@@ -290,6 +297,23 @@
             let stockRequestSeq = 0;
             let suppressAlmacenChange = false;
             let currentClienteDescuento = 0;
+
+            function formatDisplayMoney(value) {
+                return NI.formatMoney(value);
+            }
+
+            function enhanceLineInputs($scope) {
+                if (CAN_EDIT_PRECIO) {
+                    NI.enhanceScope($scope, '.t-qty', ['.t-price', '.t-desc-unit']);
+                } else {
+                    NI.enhanceScope($scope, '.t-qty', ['.t-desc-unit']);
+                }
+            }
+
+            NI.enhanceQty($('#sel_cantidad'));
+            if (CAN_EDIT_PRECIO) {
+                NI.enhanceMoney($('#sel_precio'));
+            }
 
             // --- CLIENT SEARCH & MODAL LOGIC ---
             $('#cliente_search_input').on('input', function() {
@@ -387,15 +411,36 @@
                 selectCliente(cliente.id, cliente.razon_social, cliente.descuento);
             };
 
+            function calcLineTotals(qty, price, descUnit) {
+                const q = NI.qtyValue(qty);
+                const p = parseFloat(price) || 0;
+                const du = Math.max(0, parseFloat(descUnit) || 0);
+                const safeDescUnit = Math.min(du, p);
+                const descTotal = safeDescUnit * q;
+                const sub = (q * p) - descTotal;
+                return { qty: q, descUnit: safeDescUnit, descTotal, sub };
+            }
+
+            function updateRowSubtotal(tr) {
+                const qty = NI.qtyValue(tr.find('.t-qty').val());
+                const price = NI.moneyValue(tr.find('.t-price').val());
+                const descUnitInput = tr.find('.t-desc-unit');
+                const descUnit = parseFloat(descUnitInput.val()) || 0;
+                const { descUnit: safeDescUnit, descTotal, sub } = calcLineTotals(qty, price, descUnit);
+                if (!descUnitInput.is(':focus')) {
+                    descUnitInput.val(formatDisplayMoney(safeDescUnit));
+                }
+                tr.find('.t-desc-hidden').val(descTotal.toFixed(2));
+                tr.find('.t-sub').text(sub.toFixed(2));
+            }
+
             function aplicarDescuentoGlobal(porcentaje) {
                 $('#tabla_detalle tbody tr').each(function() {
                     const tr = $(this);
-                    const qty = parseFloat(tr.find('.t-qty').val()) || 0;
                     const price = parseFloat(tr.find('.t-price').val()) || 0;
-                    const desc = (qty * price) * (porcentaje / 100);
-                    tr.find('.t-desc').val(desc.toFixed(2));
-                    const sub = ((qty * price) - desc).toFixed(2);
-                    tr.find('.t-sub').text(sub);
+                    const descPerUnit = price * (porcentaje / 100);
+                    tr.find('.t-desc-unit').val(descPerUnit.toFixed(2));
+                    updateRowSubtotal(tr);
                 });
                 updateTotals();
             }
@@ -556,8 +601,8 @@
                     selectedItem = { ...p, stock: Number.POSITIVE_INFINITY, ilimitado: true };
                     $('#sel_name').text(p.nombre);
                     $('#sel_codigo').val(p.codigo);
-                    $('#sel_precio').val(parseFloat(p.precio_venta).toFixed(2));
-                    $('#sel_cantidad').val('1.000').focus();
+                    $('#sel_precio').val(formatDisplayMoney(p.precio_venta));
+                    $('#sel_cantidad').val('1.00').focus();
                     setStockBadge(0, true);
                     $('#selection_card').slideDown();
                     return;
@@ -582,8 +627,8 @@
                         selectedItem = { ...p, stock: stockValue, ilimitado };
                         $('#sel_name').text(p.nombre);
                         $('#sel_codigo').val(p.codigo);
-                        $('#sel_precio').val(parseFloat(p.precio_venta).toFixed(2));
-                        $('#sel_cantidad').val('1.000').focus();
+                        $('#sel_precio').val(formatDisplayMoney(p.precio_venta));
+                        $('#sel_cantidad').val('1.00').focus();
 
                         setStockBadge(res.stock, ilimitado);
 
@@ -671,8 +716,10 @@
             // --- TABLE LOGIC ---
             $('#btn_add_item').on('click', function() {
                 if (!selectedItem) return;
-                const qty = parseFloat($('#sel_cantidad').val()) || 0;
-                const price = parseFloat($('#sel_precio').val()) || 0;
+                const qty = NI.qtyValue($('#sel_cantidad').val());
+                const price = CAN_EDIT_PRECIO
+                    ? (parseFloat($('#sel_precio').val()) || 0)
+                    : (parseFloat(selectedItem.precio_venta) || 0);
 
                 if (qty <= 0) { Swal.fire("Error", "Ingrese una cantidad valida", "warning"); return; }
                 if (qty > selectedItem.stock) {
@@ -689,9 +736,10 @@
             function addItem(p, qty, price) {
                 rowCount++;
                 itemsAgregados.add(p.id);
-                const subTotalBruto = qty * price;
-                const descCalculado = subTotalBruto * (currentClienteDescuento / 100);
-                const sub = (subTotalBruto - descCalculado).toFixed(2);
+                const descPerUnit = price * (currentClienteDescuento / 100);
+                const { descUnit: safeDescUnit, descTotal, sub } = calcLineTotals(qty, price, descPerUnit);
+                const priceReadonly = CAN_EDIT_PRECIO ? '' : 'readonly';
+                const priceClass = CAN_EDIT_PRECIO ? '' : 'bg-light';
 
                 const row = `
                     <tr id="row_${rowCount}" data-id="${p.id}">
@@ -701,27 +749,32 @@
                             <div class="small text-muted">${p.codigo}</div>
                             <input type="hidden" name="arrayidproducto[]" value="${p.id}">
                         </td>
-                        <td><input type="number" name="arraycantidad[]" class="form-control form-control-sm t-qty" value="${qty.toFixed(3)}" step="0.001"></td>
-                        <td><input type="number" name="arrayprecioventa[]" class="form-control form-control-sm t-price" value="${price.toFixed(2)}" step="0.01"></td>
-                        <td><input type="number" name="arraydescuento[]" class="form-control form-control-sm t-desc" value="${descCalculado.toFixed(2)}" step="0.01"></td>
-                        <td class="text-end fw-bold">Bs. <span class="t-sub">${sub}</span></td>
+                        <td><input type="text" name="arraycantidad[]" class="form-control form-control-sm t-qty" value="${NI.formatQty(qty)}" inputmode="decimal" autocomplete="off"></td>
+                        <td><input type="number" name="arrayprecioventa[]" class="form-control form-control-sm t-price ${priceClass}" value="${formatDisplayMoney(price)}" ${priceReadonly}></td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm t-desc-unit" value="${formatDisplayMoney(safeDescUnit)}" min="0" title="Descuento por unidad (Bs.)">
+                            <input type="hidden" name="arraydescuento[]" class="t-desc-hidden" value="${descTotal.toFixed(2)}">
+                        </td>
+                        <td class="text-end fw-bold">Bs. <span class="t-sub">${sub.toFixed(2)}</span></td>
                         <td class="text-center">
                             <button type="button" class="btn btn-link text-danger p-0 delete-row"><i class="fas fa-trash-alt"></i></button>
                         </td>
                     </tr>
                 `;
-                $('#tabla_detalle tbody').append(row);
+                const $row = $(row);
+                $('#tabla_detalle tbody').append($row);
+                enhanceLineInputs($row);
                 updateTotals();
                 checkVisibility();
             }
 
-            $(document).on('input', '.t-qty, .t-price, .t-desc', function() {
-                const tr = $(this).closest('tr');
-                const q = parseFloat(tr.find('.t-qty').val()) || 0;
-                const p = parseFloat(tr.find('.t-price').val()) || 0;
-                const d = parseFloat(tr.find('.t-desc').val()) || 0;
-                const sub = ((q * p) - d).toFixed(2);
-                tr.find('.t-sub').text(sub);
+            $(document).on('input', '.t-qty, .t-desc-unit' + (CAN_EDIT_PRECIO ? ', .t-price' : ''), function() {
+                updateRowSubtotal($(this).closest('tr'));
+                updateTotals();
+            });
+
+            $(document).on('blur', '.t-desc-unit', function() {
+                updateRowSubtotal($(this).closest('tr'));
                 updateTotals();
             });
 
@@ -765,6 +818,15 @@
                         resetVentaItems();
                     }
                 });
+            });
+
+            $('#ventaForm').on('submit', function() {
+                NI.normalizeFormQty($(this));
+                NI.normalizeFormMoney($(this), ['.t-price', '.t-desc-unit', '.t-desc-hidden']);
+                $('#tabla_detalle tbody tr').each(function() {
+                    updateRowSubtotal($(this));
+                });
+                updateTotals();
             });
         });
     </script>

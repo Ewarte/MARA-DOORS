@@ -69,6 +69,7 @@ class PermissionSeeder extends Seeder
             'ver-producto',
             'crear-producto',
             'editar-producto',
+            'editar-precio-producto',
             'update-estado-producto',
             'ajustar-stock',
             'eliminar-producto',
@@ -109,7 +110,7 @@ class PermissionSeeder extends Seeder
         ];
 
         foreach ($permisos as $permiso) {
-            Permission::create(['name' => $permiso]);
+            Permission::firstOrCreate(['name' => $permiso]);
         }
     }
 }
